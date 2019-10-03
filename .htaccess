@@ -11,6 +11,13 @@
     # deny access to hidden files and directories except .well-known
     RewriteCond %{REQUEST_URI} !^/\.well-known
     RewriteRule ^(.*/)?\.+ - [F]
+    
+    # ensure https
+	RewriteCond %{HTTP:X-Forwarded-Proto} !https
+	RewriteCond %{HTTPS} off
+	RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+
 </IfModule>
 
 # deny access to hidden files and directories without mod_rewrite
@@ -18,3 +25,10 @@ RedirectMatch 403 ^/(?!\.well-known/)(.*/)?\.+
 
 # General setting to properly handle LimeSurvey paths
 # AcceptPathInfo on
+
+
+
+
+
+
+
