@@ -200,10 +200,11 @@ class ExpressionManager
 'is_string' => array('is_string', 'LEMis_string', gT('Find whether the type of a variable is string'), 'bool is_string(var)', 'http://php.net/is-string', 1),
 'join' => array('exprmgr_join', 'LEMjoin', gT('Join strings, return joined string.This function is an alias of implode("",argN)'), 'string join(arg1,arg2,...,argN)', '', -1),
 'list' => array('exprmgr_list', 'LEMlist', gT('Return comma-separated list of values'), 'string list(arg1, arg2, ... argN)', '', -2),
+'listifop' => array('exprmgr_listifop', 'LEMlistifop', gT('Return a list of retAttr from sgqa1...sgqaN which pass the criteria (cmpAttr op value)'), 'string listifop(cmpAttr, op, value, retAttr, glue, sgqa1, sgqa2,...,sgqaN)', '', -6),
 'log' => array('exprmgr_log', 'LEMlog', gT('The logarithm of number to base, if given, or the natural logarithm. '), 'number log(number,base=e)', 'http://php.net/log', -2),
 'ltrim' => array('ltrim', 'ltrim', gT('Strip whitespace (or other characters) from the beginning of a string'), 'string ltrim(string [, charlist])', 'http://php.net/ltrim', 1, 2),
-'max' => array('max', 'Decimal.asNum.max', gT('Find highest value'), 'number max(arg1, arg2, ... argN)', 'http://php.net/max', -2),
-'min' => array('min', 'Decimal.asNum.min', gT('Find lowest value'), 'number min(arg1, arg2, ... argN)', 'http://php.net/min', -2),
+'max' => array('max', 'LEMmax', gT('Find highest value'), 'number|string max(arg1, arg2, ... argN)', 'http://php.net/max', -2),
+'min' => array('min', 'LEMmin', gT('Find lowest value'), 'number|string min(arg1, arg2, ... argN)', 'http://php.net/min', -2),
 'mktime' => array('exprmgr_mktime', 'mktime', gT('Get UNIX timestamp for a date (each of the 6 arguments are optional)'), 'number mktime([hour [, minute [, second [, month [, day [, year ]]]]]])', 'http://php.net/mktime', 0, 1, 2, 3, 4, 5, 6),
 'nl2br' => array('nl2br', 'nl2br', gT('Inserts HTML line breaks before all newlines in a string'), 'string nl2br(string)', 'http://php.net/nl2br', 1, 1),
 'number_format' => array('number_format', 'number_format', gT('Format a number with grouped thousands'), 'string number_format(number)', 'http://php.net/number-format', 1),
@@ -326,6 +327,7 @@ class ExpressionManager
             $aForceStringArray = array('DQ_STRING', 'DS_STRING', 'STRING'); // Question can return NUMBER or WORD : DQ and DS is string entered by user, STRING is a result of a String function
             if ((isset($arg1[2]) && in_array($arg1[2], $aForceStringArray) || (isset($arg2[2]) && in_array($arg2[2], $aForceStringArray)))) {
                 $bBothNumeric = false;
+                $bBothString = true;
                 $bMismatchType = false;
                 $arg1[0] = strval($arg1[0]);
                 $arg2[0] = strval($arg2[0]);
@@ -352,6 +354,8 @@ class ExpressionManager
             case 'lt':
                 if ($bMismatchType) {
                     $result = array(false, $token[1], 'NUMBER');
+                } elseif(!$bBothNumeric && $bBothString) {
+                    $result = array(strcmp($arg1[0],$arg2[0]) < 0, $token[1], 'NUMBER');
                 } else {
                     $result = array(($arg1[0] < $arg2[0]), $token[1], 'NUMBER');
                 }
@@ -364,6 +368,8 @@ class ExpressionManager
                     // Need this explicit comparison in order to be in agreement with JavaScript
                     if (($arg1[0] == '0' && $arg2[0] == '') || ($arg1[0] == '' && $arg2[0] == '0')) {
                         $result = array(true, $token[1], 'NUMBER');
+                    } elseif(!$bBothNumeric && $bBothString) {
+                        $result = array(strcmp($arg1[0],$arg2[0]) <= 0, $token[1], 'NUMBER');
                     } else {
                         $result = array(($arg1[0] <= $arg2[0]), $token[1], 'NUMBER');
                     }
@@ -377,6 +383,8 @@ class ExpressionManager
                     // Need this explicit comparison in order to be in agreement with JavaScript : still needed since we use ==='' ?
                     if (($arg1[0] == '0' && $arg2[0] == '') || ($arg1[0] == '' && $arg2[0] == '0')) {
                         $result = array(false, $token[1], 'NUMBER');
+                    } elseif(!$bBothNumeric && $bBothString) {
+                        $result = array(strcmp($arg1[0],$arg2[0]) > 0, $token[1], 'NUMBER');
                     } else {
                         $result = array(($arg1[0] > $arg2[0]), $token[1], 'NUMBER');
                     }
@@ -386,9 +394,10 @@ class ExpressionManager
             case 'ge':
                 if ($bMismatchType) {
                     $result = array(false, $token[1], 'NUMBER');
+                } elseif(!$bBothNumeric && $bBothString) {
+                    $result = array(strcmp($arg1[0],$arg2[0]) >= 0, $token[1], 'NUMBER');
                 } else {
                     $result = array(($arg1[0] >= $arg2[0]), $token[1], 'NUMBER');
-
                 }
                 break;
             case '+':
@@ -1756,10 +1765,20 @@ class ExpressionManager
 
     /**
      * If the equation contains reference to this, expand to comma separated list if needed.
+     *
      * @param string $src
+     * @return string
      */
     function ExpandThisVar($src)
     {
+        /** @var array */
+        static $cache = [];
+        if (isset($cache[$src])) {
+            return $cache[$src];
+        }
+        /** @var boolean $setInCache set result in static $cache. mantis #14998 */
+        $setInCache = true;
+        /** @var string */
         $expandedVar = "";
         $tokens = $this->Tokenize($src,1);
         foreach ($tokens as $token) {
@@ -1768,6 +1787,7 @@ class ExpressionManager
                 case 'WORD':
                     $splitter = '(?:\b(?:self|that))(?:\.(?:[A-Z0-9_]+))*'; // self or that, optionnaly followed by dot and alnum
                     if (preg_match("/".$splitter."/", $token[0])) {
+                        $setInCache = false;
                         $expandedVar .= LimeExpressionManager::GetAllVarNamesForQ($this->questionSeq, $token[0]);
                     } else {
                         $expandedVar .= $token[0];
@@ -1793,6 +1813,9 @@ class ExpressionManager
                 default:
                     $expandedVar .= $token[0];
             }
+        }
+        if($setInCache) {
+            $cache[$src] = $expandedVar;
         }
         return $expandedVar;
     }
@@ -2199,6 +2222,15 @@ class ExpressionManager
      */
     private function RDP_Tokenize($sSource, $bOnEdit = false)
     {
+        /** @var array Memoize result in local cache variable. */
+        static $cache = [];
+
+        /** @var string */
+        $cacheKey = $sSource . json_encode($bOnEdit);
+        if (isset($cache[$cacheKey])) {
+            return $cache[$cacheKey];
+        }
+
         // $aInitTokens = array of tokens from equation, showing value and offset position.  Will include SPACE.
         if ($bOnEdit) {
                     $aInitTokens = preg_split($this->RDP_TokenizerRegex, $sSource, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_OFFSET_CAPTURE));
@@ -2226,9 +2258,10 @@ class ExpressionManager
                 }
             }
         }
+
+        $cache[$cacheKey] = $aTokens;
         return $aTokens;
     }
-
 
     /**
      * Show a table of allowable Expression Manager functions
@@ -2604,6 +2637,56 @@ function exprmgr_list($args)
             ++$j;
         }
     }
+    return $result;
+}
+
+/**
+ * Implementation of listifop( $cmpAttr, $op, $value, $retAttr, $glue, $sgqa1, ..., sgqaN )
+ * Return a list of retAttr from sgqa1...sgqaN which pass the critiera (cmpAttr op value)
+ * @param array $args
+ * @return string
+ */
+function exprmgr_listifop( $args )
+{
+    $result = "";
+    $cmpAttr = array_shift($args);
+    $op = array_shift($args);
+    $value = array_shift($args);
+    $retAttr = array_shift($args);
+    $glue = array_shift($args);
+    
+    $validAttributes = "/" . ExpressionManager::$RDP_regex_var_attr . "/";
+    if ( ! preg_match( $validAttributes, $cmpAttr ) ) {
+        return $cmpAttr . " not recognized ?!";
+    }
+    if ( ! preg_match( $validAttributes, $retAttr ) ) {
+        return $retAttr . " not recognized ?!";
+    }
+    
+    foreach ($args as $sgqa) {
+        $cmpVal = LimeExpressionManager::GetVarAttribute($sgqa,$cmpAttr,null,-1,-1);
+        $match = false;
+        
+        switch ($op) {
+            case '==': case 'eq': $match = ($cmpVal == $value); break;
+            case '>=': case 'ge': $match = ($cmpVal >= $value); break;
+            case '>' : case 'gt': $match = ($cmpVal > $value);  break;
+            case '<=': case 'le': $match = ($cmpVal <= $value); break;
+            case '<' : case 'lt': $match = ($cmpVal < $value);  break;
+            case '!=': case 'ne': $match = ($cmpVal != $value); break;
+            case 'RX': try { $match = preg_match( $value, $cmpVal ); }
+            catch ( Exception $ex ) { return "Invalid RegEx"; } break;
+        }
+        
+        if ( $match ) {
+            $retVal = LimeExpressionManager::GetVarAttribute($sgqa,$retAttr,null,-1,-1);
+            if ( $result != "" ) {
+                $result .= $glue;
+            }
+            $result .= $retVal;
+        }
+    }
+    
     return $result;
 }
 

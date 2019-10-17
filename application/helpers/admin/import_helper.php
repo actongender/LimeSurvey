@@ -807,7 +807,7 @@ function XMLImportSurvey($sFullFilePath, $sXMLdata = null, $sNewSurveyName = nul
         $sXMLdata = (string) file_get_contents($sFullFilePath);    
     }
 
-    $xml = @simplexml_load_string($sXMLdata, 'SimpleXMLElement', LIBXML_NONET);
+    $xml = @simplexml_load_string($sXMLdata, 'SimpleXMLElement', LIBXML_NONET | LIBXML_PARSEHUGE);
 
     if (!$xml || $xml->LimeSurveyDocType != 'Survey') {
         $results['error'] = gT("This is not a valid LimeSurvey survey structure XML file.");
@@ -862,11 +862,9 @@ function XMLImportSurvey($sFullFilePath, $sXMLdata = null, $sNewSurveyName = nul
             $insertdata[(string) $key] = (string) $value;
         }
         $iOldSID = $results['oldsid'] = $insertdata['sid'];
-
-        if ($iDesiredSurveyId != null) {
-            $insertdata['wishSID'] = GetNewSurveyID($iDesiredSurveyId);
-        } else {
-            $insertdata['wishSID'] = $iOldSID;
+        // Fix#14609 wishSID overwrite sid
+        if(!is_null($iDesiredSurveyId)) {
+            $insertdata['sid'] = $iDesiredSurveyId;
         }
 
         if ($iDBVersion < 145) {
@@ -908,7 +906,7 @@ function XMLImportSurvey($sFullFilePath, $sXMLdata = null, $sNewSurveyName = nul
 
         /* Remove unknow column */
         $aSurveyModelsColumns = Survey::model()->attributes;
-        $aSurveyModelsColumns['wishSID'] = null; // To force a sid surely
+        $aSurveyModelsColumns['wishSID'] = null; // Can not be imported
         $aBadData = array_diff_key($insertdata, $aSurveyModelsColumns);
         $insertdata = array_intersect_key($insertdata, $aSurveyModelsColumns);
         // Fill a optionnal array of error
@@ -1004,6 +1002,11 @@ function XMLImportSurvey($sFullFilePath, $sXMLdata = null, $sNewSurveyName = nul
             if ($bTranslateInsertansTags) {
                 $insertdata['group_name'] = translateLinks('survey', $iOldSID, $iNewSID, $insertdata['group_name']);
                 $insertdata['description'] = translateLinks('survey', $iOldSID, $iNewSID, $insertdata['description']);
+            }
+
+            // #14646: fix utf8 encoding issue
+            if (!mb_detect_encoding($insertdata['group_name'], 'UTF-8', true)) {
+                $insertdata['group_name'] = utf8_encode($insertdata['group_name']);
             }
 
             // Insert the new group
@@ -1658,30 +1661,6 @@ function XMLImportSurvey($sFullFilePath, $sXMLdata = null, $sNewSurveyName = nul
     LimeExpressionManager::RevertUpgradeConditionsToRelevance($iNewSID);
     LimeExpressionManager::UpgradeConditionsToRelevance($iNewSID);
     return $results;
-}
-
-/**
-* This function returns a new random sid if the existing one is taken,
-* otherwise it returns the old one.
-*
-* @param mixed $iDesiredSurveyId
-*/
-function GetNewSurveyID($iDesiredSurveyId)
-{
-    Yii::app()->loadHelper('database');
-    $aSurvey = Survey::model()->findByPk($iDesiredSurveyId);
-    if (!empty($aSurvey) || $iDesiredSurveyId == 0) {
-        // Get new random ids until one is found that is not used
-        do {
-            $iNewSID = randomChars(5, '123456789');
-            $aSurvey = Survey::model()->findByPk($iNewSID);
-        }
-        while (!is_null($aSurvey));
-
-        return $iNewSID;
-    } else {
-        return $iDesiredSurveyId;
-    }
 }
 
 /**

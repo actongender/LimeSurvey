@@ -1075,8 +1075,6 @@ function sendCacheHeaders()
         header("Expires: Mon, 26 Jul 1997 05:00:00 GMT"); // Date in the past
         header("Last-Modified: ".gmdate("D, d M Y H:i:s")." GMT"); // always modified
         header("Cache-Control: no-store, no-cache, must-revalidate"); // HTTP/1.1
-        header("Cache-Control: post-check=0, pre-check=0", false);
-        header("Pragma: no-cache");
         header('Content-Type: text/html; charset=utf-8');
     }
 }
@@ -1775,6 +1773,7 @@ function createFieldMap($survey, $style = 'short', $force_refresh = false, $ques
             $answersCount = intval(Answer::model()->countByAttributes(array('qid' => $arow['qid'], 'language' => $sLanguage)));
             $maxDbAnswer = QuestionAttribute::model()->find("qid = :qid AND attribute = 'max_subquestions'", array(':qid' => $arow['qid']));
             $columnsCount = (!$maxDbAnswer || intval($maxDbAnswer->value) < 1) ? $answersCount : intval($maxDbAnswer->value);
+            $columnsCount = min($columnsCount,$answersCount); // Can not be upper than current answers #14899
             for ($i = 1; $i <= $columnsCount; $i++) {
                 $fieldname = "{$arow['sid']}X{$arow['gid']}X{$arow['qid']}$i";
                 if (isset($fieldmap[$fieldname])) {

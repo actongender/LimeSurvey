@@ -233,7 +233,7 @@ class SurveyAdmin extends Survey_Common_Action
         $aData          = array_merge($aData, $this->_tabPublicationAccess($survey));
         $aData          = array_merge($aData, $this->_tabNotificationDataManagement($esrow));
         $aData          = array_merge($aData, $this->_tabTokens($esrow));
-        $aData          = array_merge($aData, $this->_tabPanelIntegration($survey));
+        $aData          = array_merge($aData, $this->_tabPanelIntegration($survey, $survey->language));
         $aData          = array_merge($aData, $this->_tabResourceManagement($survey));
 
         $oResult = Question::model()->getQuestionsWithSubQuestions($iSurveyID, $esrow['language'], "({{questions}}.type = 'T'  OR  {{questions}}.type = 'Q'  OR  {{questions}}.type = 'T' OR {{questions}}.type = 'S')");
@@ -768,11 +768,9 @@ class SurveyAdmin extends Survey_Common_Action
 
                 $aData['tnewtable'] = $tnewtable;
                 $aData['toldtable'] = $toldtable;
-
-                // Reset the session of the survey when deactivating it
-                killSurveySession($iSurveyID);
             }
-
+            // Reset the session of the survey when deactivating it
+            killSurveySession($iSurveyID);
             //Remove any survey_links to the CPDB
             SurveyLink::model()->deleteLinksBySurvey($iSurveyID);
 
@@ -1224,7 +1222,7 @@ class SurveyAdmin extends Survey_Common_Action
             $aData = array_merge($aData, $this->_tabPublicationAccess($survey));
             $aData = array_merge($aData, $this->_tabNotificationDataManagement($esrow));
             $aData = array_merge($aData, $this->_tabTokens($esrow));
-            $aData = array_merge($aData, $this->_tabPanelIntegration($survey));
+            $aData = array_merge($aData, $this->_tabPanelIntegration($survey, $sLang));
             $aData = array_merge($aData, $this->_tabResourceManagement($survey));
 
             $oResult = Question::model()->getQuestionsWithSubQuestions($iSurveyID, $esrow['language'], "({{questions}}.type = 'T'  OR  {{questions}}.type = 'Q'  OR  {{questions}}.type = 'T' OR {{questions}}.type = 'S')");
@@ -1296,7 +1294,7 @@ class SurveyAdmin extends Survey_Common_Action
                     $aData['sErrorMessage'] = sprintf(gT("Sorry, this file is too large. Only files up to %01.2f MB are allowed."), getMaximumFileUploadSize() / 1024 / 1024).'<br>';
                     $aData['bFailed'] = true;
                 } elseif (!in_array(strtolower($sExtension), array('lss', 'txt', 'tsv', 'lsa'))) {
-                    $aData['sErrorMessage'] = sprintf(gT("Import failed. You specified an invalid file type '%s'."), $sExtension);
+                    $aData['sErrorMessage'] = sprintf(gT("Import failed. You specified an invalid file type '%s'."), CHtml::encode($sExtension));
                     $aData['bFailed'] = true;
                 } elseif ($aData['bFailed'] || !@move_uploaded_file($_FILES['the_file']['tmp_name'], $sFullFilepath)) {
                     $aData['sErrorMessage'] = gT("An error occurred uploading your file. This may be caused by incorrect permissions for the application /tmp folder.");
@@ -1865,13 +1863,42 @@ class SurveyAdmin extends Survey_Common_Action
      * @param Survey $survey
      * @return array
      */
-    private function _tabPanelIntegration($survey)
+    private function _tabPanelIntegration($survey, $sLang = null)
     {
-
-        App()->getClientScript()->registerPackage('jquery-datatable');
+        $sLang = $sLang == null ? $survey->language : $sLang;
         $aData = [];
-        $oResult = Question::model()->getQuestionsWithSubQuestions($survey->sid, $survey->language, "({{questions}}.type = 'T'  OR  {{questions}}.type = 'Q'  OR  {{questions}}.type = 'T' OR {{questions}}.type = 'S')");
-        $aData['questions'] = $oResult;
+        $oResult = Question::model()->findAll("sid=:sid AND (type = 'T'  OR type = 'Q'  OR  type = 'T' OR type = 'S') AND language = :lang", [":sid" => $survey->sid, ":lang" => $sLang]);
+        $aQuestions = [];
+        foreach ($oResult as $aRecord) {
+            $aQuestions[] = $aRecord->attributes;
+        }
+        $aData['jsData'] = [
+            'i10n' => [
+                'ID' => gT('ID'),
+                'Action' => gT('Action'),
+                'Parameter' => gT('Parameter'),
+                'Target question' => gT('Target question'),
+                'Survey ID' => gT('Survey id'),
+                'Question ID' => gT('Question id'),
+                'Subquestion ID' => gT('Subquestion ID'),
+                'Add URL parameter' => gT('Add URL parameter'),
+                'Edit URL parameter' => gT('Edit URL parameter'),
+                'Add URL parameter' => gT('Add URL parameter'),
+                'Parameter' => gT('Parameter'),
+                'Target question' => gT('Target question'),
+                'No target question' => gT('(No target question)'),
+                'Are you sure you want to delete this URL parameter?' => gT('Are you sure you want to delete this URL parameter?'),
+                'No, cancel' => gT('No, cancel'),
+                'Yes, delete' => gT('Yes, delete'),
+                'Save' => gT('Save'),
+                'Cancel' => gT('Cancel'),
+            ],
+            "questionList" => $aQuestions,
+            "surveyid" => $survey->sid,            
+            "getParametersUrl" => Yii::app()->createUrl('admin/survey/sa/getUrlParamsJson', array('surveyid' => $survey->sid)),
+        ];
+
+        App()->getClientScript()->registerPackage('panelintegration');
         return $aData;
     }
 
@@ -2015,7 +2042,6 @@ class SurveyAdmin extends Survey_Common_Action
     {
         App()->getClientScript()->registerPackage('jquery-json');
         App()->getClientScript()->registerPackage('bootstrap-switch');
-        App()->getClientScript()->registerPackage('jquery-datatable');
 
     }
 
@@ -2137,7 +2163,7 @@ class SurveyAdmin extends Survey_Common_Action
             }
 
             if (!is_null($iSurveyID)) {
-                $aInsertData['wishSID'] = $iSurveyID;
+                $aInsertData['sid'] = $iSurveyID;
             }
 
             $newSurvey = Survey::model()->insertNewSurvey($aInsertData);
@@ -2337,7 +2363,7 @@ class SurveyAdmin extends Survey_Common_Action
                 false
             );
         }
-        $checkImage = LSYii_ImageValidator::validateImage($_FILES["file"]["tmp_name"]);
+        $checkImage = LSYii_ImageValidator::validateImage($_FILES["file"]);
         if ($checkImage['check'] === false) {
             return Yii::app()->getController()->renderPartial(
                 '/admin/super/_renderJson',

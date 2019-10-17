@@ -382,6 +382,7 @@ $config['notsupportlanguages'] = array(
     );
 $config['pdffontsize']    = 9; //Fontsize for normal text; Surveytitle is +4; grouptitle is +2
 $config['pdforientation'] = 'P'; // Set L for Landscape or P for portrait format
+$config['pdfshowsurveytitle'] = 'Y'; // Show header in pdf answer export
 $config['pdfshowheader'] = 'N'; // Show header in pdf answer export
 $config['pdflogofile'] = 'logo_pdf.png'; // File name of logo for single answer export. Path is theme path, i.e. theme/default/logo_pdf.png.
                                             // If not found, resulting pdf doesn't have header. A large image implies slower pdf generation.
@@ -510,13 +511,18 @@ $config['force_ssl'] = 'neither'; // DO not turn on unless you are sure your ser
 $config['ssl_emergency_override'] = false;
 
 /**
+* @var $ssl_disable_alert boolean disable alert for super admin
+*/
+$config['ssl_disable_alert'] = false;
+
+/**
 * Sets if any part of LimeSUrvey may be embedded in an iframe
 * Valid values are allow, sameorigin
-* Default: allow
-* Recommended: sameorigin
+* Default / Recommended: sameorigin
+* To disable the header, set it to allow
 * Using 'deny' is currently not supported as it will disable the theme editor preview and probably file upload.
 */
-$config['x_frame_options'] = 'allow';
+$config['x_frame_options'] = 'sameorigin';
 
 
 // Get your IP Info DB key from http://ipinfodb.com/
@@ -555,6 +561,21 @@ $config['iFileUploadTotalSpaceMB'] = 0;
 
 
 $config['uniq_upload_dir'] = false; // Use a single KCFinder upload directory for all surveys
+
+/**
+ * Allow to use a different MIME database for finfo_open
+ * @see https://www.php.net/manual/en/function.finfo-open.php
+ * Example : '/usr/share/misc/magic.mgc' for redhat based linux
+ */
+$config['magic_database'] = null;
+
+/**
+ * Allow to use a different magic file array 
+ * @see https://www.yiiframework.com/doc/api/1.1/CFileHelper#getExtensionByMimeType-detail
+ * This file must return a PHP array of extension by mimeTypes
+ * Example : https://github.com/LimeSurvey/LimeSurvey/blob/master/framework/utils/fileExtensions.php
+ */
+$config['magic_file'] = null;
 
 
 // defines if the CKeditor toolbar should be opened by default
@@ -658,6 +679,7 @@ $config['corequestionthemerootdir'] = $config['rootdir'].DIRECTORY_SEPARATOR.$co
 $config['styledir']                 = $config['rootdir'].DIRECTORY_SEPARATOR.'themes'.DIRECTORY_SEPARATOR.'admin';
 $config['questiontypedir']          = $config['rootdir'].DIRECTORY_SEPARATOR.'application'.DIRECTORY_SEPARATOR.'extensions'.DIRECTORY_SEPARATOR.'questionTypes';
 $config['userthemerootdir']         = $config['uploaddir'].DIRECTORY_SEPARATOR."themes".DIRECTORY_SEPARATOR."survey"; // The directory path of the user themes
+$config['usertwigextensionrootdir'] = $config['uploaddir'].DIRECTORY_SEPARATOR."twig".DIRECTORY_SEPARATOR."extensions"; // The directory path of the user custom twig extensions
 $config['userquestionthemedir']     = "themes".DIRECTORY_SEPARATOR."question"; // The directory containing the user's question themes.
 $config['userquestionthemerootdir'] = $config['uploaddir'].DIRECTORY_SEPARATOR.$config['userquestionthemedir']; // The directory containing the user's question themes.
 
@@ -722,6 +744,5 @@ $config['pluginCoreList'] = [
 ];
 
 $config['pluginWhitelist'] = [];
-
 return $config;
 //settings deleted

@@ -126,21 +126,90 @@ return array(
             'lslog',
         )
     ),
-    'adminpanel' => array(
-        'devBaseUrl' => 'assets/packages/adminpanel/',
-        'basePath' => 'core.adminpanel',
-        'js' => array(
-            'build/lsadminpanel'.(($debug > 0) ? '' : '.min').'.js',
-            'build/surveysettings'.$minVersion.'.js',
-            'build/hammer'.$minVersion.'.js'
+    'adminsidepanel' => array(
+       'devBaseUrl' => 'assets/packages/adminsidepanel/',
+       'basePath' => 'core.adminsidepanel',
+       'position' =>CClientScript::POS_HEAD,
+       'js' => (
+           $debug > 0
+            ? array(
+                'build/js/adminsidepanel.js',
+            )
+            : array(
+                'build.min/js/adminsidepanel.js'
+            )
         ),
+        'depends' => array(
+            'adminbasics',
+        )
+    ),
+    'adminsidepanelltr' => array(
+       'devBaseUrl' => 'assets/packages/adminsidepanel/',
+       'basePath' => 'core.adminsidepanel',
+       'css' => (
+        $debug > 0
+            ? array(
+                'build/css/adminsidepanel.css',
+            )
+            : array(
+                'build.min/css/adminsidepanel.css'
+            )
+            ),
+        'depends' => array(
+            'adminsidepanel',
+        )
+    ),
+    'adminsidepanelrtl' => array(
+       'devBaseUrl' => 'assets/packages/adminsidepanel/',
+       'basePath' => 'core.adminsidepanel',
+       'css' => (
+        $debug > 0
+            ? array(
+                'build/css/adminsidepanel.rtl.css',
+            )
+            : array(
+                'build.min/css/adminsidepanel.rtl.css'
+            )
+            ),
+        'depends' => array(
+            'adminsidepanel',
+        )
+    ),
+    'panelintegration' => array(
+        'devBaseUrl' => 'assets/packages/panelintegration/',
+        'basePath' => 'core.panelintegration',
+        'position' =>CClientScript::POS_END,
+        'js' => (
+            $debug > 0
+             ? array(
+                 'build/js/panelintegration.js',
+             )
+             : array(
+                 'build.min/js/panelintegration.js'
+             )
+         ),
         'css' => array(
-            'build/lsadminpanel'.$minVersion.'.css'
+            'build.min/css/main.css'
         ),
         'depends' => array(
             'adminbasics'
         )
-    ),
+     ),
+    // 'adminpanel' => array(
+    //     'devBaseUrl' => 'assets/packages/adminpanel/',
+    //     'basePath' => 'core.adminpanel',
+    //     'js' => array(
+    //         'build/lsadminpanel'.(($debug > 0) ? '' : '.min').'.js',
+    //         'build/surveysettings'.$minVersion.'.js',
+    //         'build/hammer'.$minVersion.'.js'
+    //     ),
+    //     'css' => array(
+    //         'build/lsadminpanel'.$minVersion.'.css'
+    //     ),
+    //     'depends' => array(
+    //         'adminbasics'
+    //     )
+    // ),
     'lstutorial' => array(
         'devBaseUrl' => 'assets/packages/lstutorial/',
         'basePath' => 'core.lstutorial',
@@ -152,6 +221,7 @@ return array(
             'build/lstutorial.css'
         ),
         'depends' => array(
+            'bootstrap',
             'adminbasics',
         )
     ),
@@ -174,16 +244,8 @@ return array(
         'devBaseUrl' => 'assets/packages/adminbasics/',
         'basePath' => 'core.adminbasics',
         'position' =>CClientScript::POS_HEAD,
-        'css' => array(
-            'css/lime-admin-common.css',
-            'css/jcarousel.responsive.css',
-            'css/attributeMap.css',
-            'css/attributeMapToken.css',
-            'css/displayParticipants.css',
-            'build/adminbasics'.(($debug > 0) ? '' : '.min').'.css',
-        ),
         'js' => array(
-            'build/adminbasics'.(($debug > 0) ? '' : '.min').'.js',
+            'build/adminbasics'.$minVersion.'.js',
         ),
         'depends' => array(
             'jquery',
@@ -195,21 +257,21 @@ return array(
     'adminbasicsrtl' => array(
         'devBaseUrl' => 'assets/packages/adminbasics/',
         'basePath' => 'core.adminbasics',
-        'position' =>CClientScript::POS_BEGIN,
         'css' => array(
-            'css/rtl/adminstyle-rtl.css',
-            'css/rtl/lime-admin-common-rtl.css',
-            'css/rtl/jcarousel.responsive-rtl.css',
-            'css/rtl/attributeMap-rtl.css',
-            'css/rtl/attributeMapToken-rtl.css',
-            'css/rtl/displayParticipants-rtl.css',
-        ),
-        'js' => array(
-            'build/adminbasics.js',
+            'build/adminbasics.rtl'.$minVersion.'.css'
         ),
         'depends' => array(
-            'jquery',
-            'pjaxbackend',
+            'adminbasics'
+        )
+    ),
+    'adminbasicsltr' => array(
+        'devBaseUrl' => 'assets/packages/adminbasics/',
+        'basePath' => 'core.adminbasics',
+        'css' => array(
+            'build/adminbasics'.$minVersion.'.css'
+        ),
+        'depends' => array(
+            'adminbasics'
         )
     ),
 
@@ -278,7 +340,12 @@ return array(
         'depends' => array(
             'decimal',
         )
-    )
-
+    ),
+    /* Replace bbq package from Yii core to set position */
+    'bbq'=>array(
+        'position' => CClientScript::POS_BEGIN,
+        'js'=>array(YII_DEBUG ? 'jquery.ba-bbq.js' : 'jquery.ba-bbq.min.js'),
+        'depends'=>array('jquery'),
+    ),
 
 );

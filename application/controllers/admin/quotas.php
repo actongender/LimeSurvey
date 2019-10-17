@@ -248,7 +248,6 @@ class quotas extends Survey_Common_Action
             /* Export a quickly done csv file */
             header("Content-Disposition: attachment; filename=quotas-survey".$iSurveyId.".csv");
             header("Content-type: text/comma-separated-values; charset=UTF-8");
-            header("Pragma: public");
             echo gT("Quota name").",".gT("Limit").",".gT("Completed").",".gT("Remaining")."\r\n";
             foreach ($csvoutput as $line) {
                 echo $line;
@@ -565,7 +564,7 @@ class quotas extends Survey_Common_Action
             $slangs = Survey::model()->findByPk($iSurveyId)->additionalLanguages;
             array_unshift($slangs, $sBaseLang);
 
-            while (list($key, $value) = each($slangs)) {
+            foreach($slangs as $key => $value) {
                 $tmparrayans = array('Title' => $aQuestion['title'], 'Display' => getLanguageNameFromCode($value, false), $value);
                 $aAnswerList[$value] = $tmparrayans;
             }

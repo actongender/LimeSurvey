@@ -261,9 +261,9 @@ function createChart($iQuestionID, $iSurveyID, $type = null, $lbl, $gdata, $graw
                 $graph->drawRoundedRectangle(5, 5, 689, $gheight - 1, 5, 230, 230, 230);
 
                 // Draw the pie chart
-                $graph->setFontProperties($rootdir."/fonts/".$chartfontfile, $chartfontsize);
+                $graph->setFontProperties($rootdir.DIRECTORY_SEPARATOR.'assets'.DIRECTORY_SEPARATOR.'fonts'.DIRECTORY_SEPARATOR.$chartfontfile, $chartfontsize);
                 $graph->drawPieGraph($DataSet->GetData(), $DataSet->GetDataDescription(), 225, round($gheight / 2), 170, PIE_PERCENTAGE, true, 50, 20, 5);
-                $graph->setFontProperties($rootdir."/fonts/".$chartfontfile, $chartfontsize);
+                $graph->setFontProperties($rootdir.DIRECTORY_SEPARATOR.'assets'.DIRECTORY_SEPARATOR.'fonts'.DIRECTORY_SEPARATOR.$chartfontfile, $chartfontsize);
                 $graph->drawPieLegend(430, 12, $DataSet->GetData(), $DataSet->GetDataDescription(), 250, 250, 250);
                 $cache->WriteToCache("graph".$iSurveyID.$sLanguageCode.$iQuestionID, $DataSet->GetData(), $graph);
                 $cachefilename = basename($cache->GetFileFromCache("graph".$iSurveyID.$sLanguageCode.$iQuestionID, $DataSet->GetData()));
@@ -818,7 +818,7 @@ class statistics_helper
                     ."\t</tr></thead>\n";
 
                     foreach ($showem as $res) {
-                                            $statisticsoutput .= "<tr><td>".$res[0]."</td><td>".$res[1]."</td></tr>";
+                        $statisticsoutput .= "<tr><td>".$res[0]."</td><td>".$res[1]."</td></tr>";
                     }
                     break;
 
@@ -846,7 +846,7 @@ class statistics_helper
 
                 $qtitle = flattenText($fielddata['title']);
                 $qtype = $fielddata['type'];
-                $qquestion = $fielddata['question'];
+                $qquestion = LimeExpressionManager::ProcessString($fielddata['question'], $qqid, NULL, 1, 1, false, true, true);
 
                 //Get answer texts for multiple numerical
                 if (substr($rt, 0, 1) == "K") {
@@ -1581,7 +1581,7 @@ class statistics_helper
 
             //"other" handling
             //"Answer" means that we show an option to list answer to "other" text field
-            elseif ($al[0] === gT("Other") || $al[0] === "Answer" || ($outputs['qtype'] === "O" && $al[0] === gT("Comments")) || $outputs['qtype'] === "P") {
+            elseif (($al[0] === gT("Other") || $al[0] === "Answer" || ($outputs['qtype'] === "O" && $al[0] === gT("Comments")) || $outputs['qtype'] === "P") && count($al) > 2) {
 
                 if ($outputs['qtype'] == "P") {
                     $sColumnName = $al[2]."comment";
@@ -2165,6 +2165,7 @@ class statistics_helper
         $sDatabaseType      = Yii::app()->db->getDriverName();
         $tempdir            = Yii::app()->getConfig("tempdir");
         $astatdata          = array();
+        $TotalIncomplete    = 0;
 
         $sColumnName = null;
 
@@ -2341,7 +2342,7 @@ class statistics_helper
 
             //"other" handling
             //"Answer" means that we show an option to list answer to "other" text field
-            elseif ($al[0] === gT("Other") || $al[0] === "Answer" || ($outputs['qtype'] === "O" && $al[0] === gT("Comments")) || $outputs['qtype'] === "P") {
+            elseif (($al[0] === gT("Other") || $al[0] === "Answer" || ($outputs['qtype'] === "O" && $al[0] === gT("Comments")) || $outputs['qtype'] === "P") && count($al) > 2) {
                 if ($outputs['qtype'] == "P") {
                     $sColumnName = $al[2]."comment";
                 } else {
@@ -2590,11 +2591,11 @@ class statistics_helper
                 break;
 
                 case 'both':
-                    $aGraphLabels[] = $sFlatLabel = $al[0].': '.$flatLabel;
+                    $aGraphLabels[] = $sFlatLabel = empty($al[0]) ? $flatLabel : $al[0] . ': ' . $flatLabel;
                 break;
 
                 default:
-                    $aGraphLabels[] = $sFlatLabel = $al[0];
+                    $aGraphLabels[] = $sFlatLabel = empty($al[0]) ? $flatLabel : $al[0];
                 break;
             }
 
@@ -2849,16 +2850,16 @@ class statistics_helper
                     //mark that we have done soemthing special here
                     $aggregated = true;
 
-                    if (($results - $grawdata[5]) > 0) {
-                        $percentage = $grawdata[$i] / ($results - $grawdata[5]) * 100; // Only answered
+                    if (($results - $grawdata[5] - $TotalIncomplete) > 0) {
+                        $percentage = $grawdata[$i] / ($results - $grawdata[5] - $TotalIncomplete) * 100; // Only answered
                     } else {
                         $percentage = 0;
                     }
 
                     switch ($itemcounter) {
                         case 1:
-                            if (($results - $grawdata[5]) > 0) {
-                                $aggregatedPercentage = ($grawdata[0] + $grawdata[1]) / ($results - $grawdata[5]) * 100;
+                            if (($results - $grawdata[5] - $TotalIncomplete) > 0) {
+                                $aggregatedPercentage = ($grawdata[0] + $grawdata[1]) / ($results - $grawdata[5] - $TotalIncomplete) * 100;
                             } else {
                                 $aggregatedPercentage = 0;
                             }
@@ -2869,8 +2870,8 @@ class statistics_helper
                             break;
 
                         case 5:
-                            if (($results - $grawdata[5]) > 0) {
-                                $aggregatedPercentage = ($grawdata[3] + $grawdata[4]) / ($results - $grawdata[5]) * 100;
+                            if (($results - $grawdata[5] - $TotalIncomplete) > 0) {
+                                $aggregatedPercentage = ($grawdata[3] + $grawdata[4]) / ($results - $grawdata[5] - $TotalIncomplete) * 100;
                             } else {
                                 $aggregatedPercentage = 0;
                             }
@@ -2878,7 +2879,7 @@ class statistics_helper
 
                         case 6:
                         case 7:
-                            if (($results - $grawdata[5]) > 0) {
+                            if (($results - $grawdata[5] - $TotalIncomplete) > 0) {
                                 $percentage = $grawdata[$i] / $results * 100; // All results
                             } else {
                                 $percentage = 0;
@@ -3051,7 +3052,7 @@ class statistics_helper
 
             $aData['extraline']            = (isset($extraline)) ? $extraline : false;
             $aData['aggregated']           = (isset($aggregated)) ? $aggregated : false;
-            $aData['aggregatedPercentage'] = (isset($aggregatedPercentage)) ? $aggregatedPercentage : false;
+            $aData['aggregatedPercentage'] = (isset($aggregatedPercentage)) ? ($i < 6 ? $aggregatedPercentage : false) : false;
             $aData['sumitems']             = (isset($sumitems)) ? $sumitems : false;
             $aData['sumpercentage']        = (isset($sumpercentage)) ? $sumpercentage : false;
             $aData['TotalCompleted']       = (isset($TotalCompleted)) ? $TotalCompleted : false;
@@ -3085,6 +3086,9 @@ class statistics_helper
         }    //end while
 
         $aData['showaggregateddata'] = false;
+
+        $aData['sumallitems']             = array_sum($grawdata);
+        $statisticsoutput .= Yii::app()->getController()->renderPartial('/admin/export/generatestats/_statisticsoutput_gross_total', $aData, true);
 
         //only show additional values when this setting is enabled
         if (Yii::app()->getConfig('showaggregateddata') == 1) {
@@ -3178,6 +3182,8 @@ class statistics_helper
                         //calculate standard deviation
                         $aData['am'] = $am;
                         $aData['stddev'] = $stddev;
+                        $aData['bShowSumAnswer'] = true;
+                        $aData['sumitems'] = $results;
                         $statisticsoutput .= Yii::app()->getController()->renderPartial('/admin/export/generatestats/_statisticsoutput_arithmetic', $aData, true);
                         break;
                     default:
@@ -3394,6 +3400,11 @@ class statistics_helper
 
                 // Labels for graphs
                 $iMaxLabelLength = 0;
+
+                // add "Not completed or Not displayed" label if missing
+                if (isset($_POST['noncompleted']) && $_POST['noncompleted'] == 0 && count($labels) > count($aGraphLabels)){
+                    $aGraphLabels[] = gT("Not completed or Not displayed");
+                }
 
                 foreach ($aGraphLabels as $key => $label) {
                     $cleanLabel = $label;
@@ -3881,6 +3892,9 @@ class statistics_helper
             $headerlogo = '';
             $logowidth = 10;
             $at = AdminTheme::getInstance();
+            if (!defined('K_PATH_IMAGES')) {
+                define($at->path.DIRECTORY_SEPARATOR.'images');
+            }
             $path = array($at->path, 'images', 'logo_statistics.jpg');
             if (file_exists(implode(DIRECTORY_SEPARATOR, $path))) {
                 $headerlogo = 'logo_statistics.jpg';

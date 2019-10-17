@@ -1,5 +1,8 @@
+<?php
+/** @var Question $oQuestion */
+?>
 <div class='side-body <?php echo getSideBodyClass(true); ?>'>
-    <div class="pagetitle h3"><?php eT('Question summary'); ?>  <small><em><?php echo  $qrrow['title'];?></em> (ID: <?php echo  $qid;?>)</small></div>
+    <div class="pagetitle h3"><?php eT('Question summary'); ?>  <small><em><?php echo  $qrrow['title'];?></em> (ID: <?php echo (int) $qid;?>)</small></div>
     <div class="row">
         <div class="col-lg-12 content-right">
 
@@ -168,7 +171,20 @@
                         <td>
                             <?php
                             LimeExpressionManager::ProcessString("{" . $qrrow['relevance'] . "}", $qid);    // tests Relevance equation so can pretty-print it
-                            echo LimeExpressionManager::GetLastPrettyPrintExpression();
+                            echo viewHelper::stripTagsEM(LimeExpressionManager::GetLastPrettyPrintExpression());
+                            ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+
+                <!-- Group Relevance equation -->
+                <?php if (trim($oQuestion->groups->grelevance)!=''): ?>
+                    <tr>
+                        <td><?php eT("Group relevance:"); ?></td>
+                        <td>
+                            <?php
+                            LimeExpressionManager::ProcessString("{" . $oQuestion->groups->grelevance . "}", $qid);
+                            echo viewHelper::stripTagsEM(LimeExpressionManager::GetLastPrettyPrintExpression());
                             ?>
                         </td>
                     </tr>

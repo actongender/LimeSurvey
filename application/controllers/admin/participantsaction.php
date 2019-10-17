@@ -48,9 +48,18 @@ class participantsaction extends Survey_Common_Action
 
     public function runWithParams($params)
     {
-        $this->checkPermission('read');
+        if (!(Permission::model()->hasGlobalPermission('participantpanel', 'read')
+            || Permission::model()->hasGlobalPermission('participantpanel', 'create')
+            || Permission::model()->hasGlobalPermission('participantpanel', 'update')
+            || Permission::model()->hasGlobalPermission('participantpanel', 'delete')
+            || ParticipantShare::model()->exists('share_uid = :userid', [':userid' => App()->user->id]))
+        ) {
+            App()->setFlashMessage(gT('No permission'), 'error');
+            App()->getController()->redirect(App()->request->urlReferrer);
+        }
 
         Yii::import('application.helpers.admin.ajax_helper', true);
+        Yii::import('application.helpers.admin.permission_helper', true);
 
         parent::runWithParams($params);
     }
@@ -298,10 +307,10 @@ $url .= "_view"; });
         }
 
         // if superadmin all the records in the cpdb will be displayed
+        $iUserId = App()->user->getId();
         if (Permission::model()->hasGlobalPermission('superadmin', 'read')) {
             $iTotalRecords = Participant::model()->count();
         } else {// if not only the participants on which he has right on (shared and owned)
-            $iUserId = Yii::app()->user->getId();
             $iTotalRecords = Participant::model()->getParticipantsOwnerCount($iUserId);
         }
         $model = new Participant();
@@ -317,7 +326,7 @@ $url .= "_view"; });
             $searchparams = explode('||', $searchcondition);
             $model->addSurveyFilter($searchparams);
         }
-        
+
         // data to be passed to view
         $aData = array(
             'names' => User::model()->findAll(),
@@ -339,7 +348,30 @@ $url .= "_view"; });
         Yii::app()->clientScript->registerPackage('bootstrap-datetimepicker');
         Yii::app()->clientScript->registerPackage('bootstrap-switch');
 
-        $aData['massiveAction'] = App()->getController()->renderPartial('/admin/participants/massive_actions/_selector', array(), true, false);
+        // check global and custom permissions and pass them to $aData
+        $aData['permissions'] = permissionsAsArray(
+            [
+                'superadmin' => ['read'],
+                'templates' => ['read'],
+                'labelsets' => ['read'],
+                'users' => ['read'],
+                'usergroups' => ['read'],
+                'participantpanel' => ['read', 'create', 'update', 'delete', 'export', 'import'],
+                'settings' => ['read']
+            ],
+            [
+                'participantpanel' => [
+                    'editSharedParticipants' => empty(ParticipantShare::model()->findAllByAttributes(
+                        ['share_uid' =>  $iUserId],
+                        ['condition' => 'can_edit = \'0\' OR can_edit = \'\'',]
+                    )),
+                    'sharedParticipantExists' => ParticipantShare::model()->exists('share_uid = :userid', [':userid' => $iUserId]),
+                    'isOwner' => isset($participantParam['owner_uid']) && ($participantParam['owner_uid'] === $iUserId) ? true : false
+                ],
+
+            ]
+        );
+        $aData['massiveAction'] = App()->getController()->renderPartial('/admin/participants/massive_actions/_selector', array('permissions' => $aData['permissions']), true, false);
 
         // Set page size
         if ($request->getPost('pageSizeParticipantView')) {
@@ -358,7 +390,8 @@ $url .= "_view"; });
     public function deleteParticipant()
     {
         // Abort if no permission
-        if (!Permission::model()->hasGlobalPermission('participantpanel', 'delete')) {
+        $deletePermission = Permission::model()->hasGlobalPermission('participantpanel', 'delete');
+        if (!$deletePermission) {
             ls\ajax\AjaxHelper::outputNoPermission();
         }
 
@@ -379,7 +412,7 @@ $url .= "_view"; });
         // Deletes from participants only
         $deletedParticipants = null;
         if ($selectoption == 'po') {
-            $deletedParticipants = Participant::model()->deleteParticipants($participantIds);
+            $deletedParticipants = Participant::model()->deleteParticipants($participantIds, !$deletePermission);
         }
         // Deletes from central and survey participants table
         else if ($selectoption == 'ptt') {
@@ -557,8 +590,16 @@ $url .= "_view"; });
         }
     }
 
-    public function batchEdit() {
-        if (!Permission::model()->hasGlobalPermission('participantpanel', 'update')) {
+    public function batchEdit()
+    {
+        $hasUpdatePermission = Permission::model()->hasGlobalPermission('participantpanel', 'update');
+        if (!$hasUpdatePermission
+            && empty(ParticipantShare::model()->findAllByAttributes(
+                ['share_uid' => (int)App()->user->id],
+                'can_edit = :can_edit',
+                [':can_edit' => '1']
+            ))
+        ) {
             Yii::app()->user->setFlash('error', gT("Access denied"));
             $this->getController()->redirect(Yii::app()->createUrl('/admin'));
             return;
@@ -578,14 +619,14 @@ $url .= "_view"; });
                 $aData[$sCoreTokenField] = flattenText(Yii::app()->request->getPost($sCoreTokenField));
             }
         }
-        
+
 
         if (count($aData) > 0) {
             foreach ($aParticipantIds as $sParticipantId) {
                 $oParticipant = Participant::model()->findByPk($sParticipantId);
-                
-                
-                
+
+
+
                 foreach ($aData as $key => $value) {
                     // Make sure no-one hacks owner_uid into form
                     if (!$oParticipant->isOwnerOrSuperAdmin() && $key=='owner_uid') {
@@ -594,13 +635,22 @@ $url .= "_view"; });
                     $oParticipant->$key = $value;
                 }
 
-                $bUpdateSuccess = $oParticipant->save();
+                // Check if the User is allowed to edit the participant
+                if (ParticipantShare::model()->canEditSharedParticipant($sParticipantId)
+                    || $oParticipant->isOwnerOrSuperAdmin()
+                    || $hasUpdatePermission
+                ) {
+                    $bUpdateSuccess = $oParticipant->save();
+                } else {
+                    $bUpdateSuccess = '';
+                };
+
                 if ($bUpdateSuccess) {
                     $aResults[$sParticipantId]['status']    = true;
                     $aResults[$sParticipantId]['message']   = gT('Updated');
                 } else {
                     $aResults[$sParticipantId]['status']    = false;
-                    $aResults[$sParticipantId]['message']   = $oParticipant->error;
+                    $aResults[$sParticipantId]['message']   = $oParticipant->getError('participant_id');
                 }
             }
         } else {
@@ -760,10 +810,14 @@ $url .= "_view"; });
                 $sSeparator = $aResult[0];
             }
             $firstline = fgetcsv($oCSVFile, 1000, $sSeparator[0]);
+
             $selectedcsvfields = array();
             $fieldlist = array();
             foreach ($firstline as $key => $value) {
                 $testvalue = preg_replace('/[^(\x20-\x7F)]*/', '', $value); //Remove invalid characters from string
+                if($value != strip_tags($value)) { /* see ParticipantAttributeName->rules for defaultname */
+                    continue;
+                }
                 if (!in_array(strtolower($testvalue), $regularfields)) {
                     array_push($selectedcsvfields, $value);
                 }
@@ -867,7 +921,7 @@ $url .= "_view"; });
             foreach ($mappedarray as $key => $value) {
                 array_push($allowedfieldnames, strtolower($value));
             }
-        }        
+        }
         foreach ($tokenlistarray as $buffer) {
 //Iterate through the CSV file line by line
             $buffer = @mb_convert_encoding($buffer, "UTF-8", $uploadcharset);
@@ -949,6 +1003,15 @@ $url .= "_view"; });
                     $thisduplicate = 1;
                     $dupcount++;
                     if ($overwrite == "true") {
+                        // We want all the non filtering internal attributes to be updated,too
+                        $oParticipant = Participant::model()->findByPk($aData);
+                        foreach ($writearray as $attribute => $value) {
+                            if(in_array($attribute, ['firstname', 'lastname', 'email'])) {
+                                continue;
+                            }
+                            $oParticipant->$attribute = $value;
+                        }
+                        $oParticipant->save();
                         //Although this person already exists, we want to update the mapped attribute values
                         if (!empty($mappedarray)) {
                             //The mapped array contains the attributes we are
@@ -1374,6 +1437,7 @@ $url .= "_view"; });
 
         $surveys = Survey::getSurveysWithTokenTable();
         $data['surveys'] = $surveys;
+        $data['hasGlobalPermission'] = Permission::model()->hasGlobalPermission('surveys', 'update');
 
         $html = $this->getController()->renderPartial(
             '/admin/participants/modal_subviews/_addToSurvey',
@@ -2052,15 +2116,18 @@ $url .= "_view"; });
 
     /**
      * Stores the shared participant information in participant_shares
+     *
      * @return void
+     * @throws CException
      */
     public function shareParticipants()
     {
-        if (!Permission::model()->hasGlobalPermission('participantpanel', 'update')) {
-            ls\ajax\AjaxHelper::outputNoPermission();
-            return;
-        }
-
+        $hasUpdatePermission = Permission::model()->hasGlobalPermission('update');
+        $isSuperAdmin = Permission::model()->hasGlobalPermission('superadmin', 'read');
+        $permissions = [
+          'hasUpdatePermission' => $hasUpdatePermission,
+          'isSuperAdmin' => $isSuperAdmin
+        ];
         $participantIds = Yii::app()->request->getPost('participant_id');
         $iShareUserId = Yii::app()->request->getPost('shareuser');
         $bCanEdit = Yii::app()->request->getPost('can_edit') == 'on';
@@ -2076,7 +2143,7 @@ $url .= "_view"; });
 
         $i = 0;
         // $iShareUserId == 0 means any user
-        if (Permission::model()->hasGlobalPermission('participantpanel', 'update') && $iShareUserId !== '') {
+        if ($iShareUserId !== '') {
             foreach ($participantIds as $id) {
                 $time = time();
                 $aData = array(
@@ -2085,7 +2152,7 @@ $url .= "_view"; });
                     'date_added' => date('Y-m-d H:i:s', $time),
                     'can_edit' => $bCanEdit
                 );
-                ParticipantShare::model()->storeParticipantShare($aData);
+                ParticipantShare::model()->storeParticipantShare($aData, $permissions);
                 $i++;
             }
         }
@@ -2093,15 +2160,27 @@ $url .= "_view"; });
     }
 
     /**
-     * Stores the shared participant information in participant_shares for ONE participant
+     * Stores the shared participant information in participant_shares for ONE participant     *
+     *
      * @return void
+     * @throws CException
+     * TODO: Is this function even used anymore? Seems all logic goes through shareParticipants()
      */
     public function shareParticipant()
     {
+        $hasUpdatePermission = Permission::model()->hasGlobalPermission('update');
+        $isSuperAdmin = Permission::model()->hasGlobalPermission('superadmin', 'read');
+        $permissions = [
+            'hasUpdatePermission' => $hasUpdatePermission,
+            'isSuperAdmin' => $isSuperAdmin
+        ];
+
         $iParticipantId = Yii::app()->request->getPost('participant_id');
         $bCanEdit = Yii::app()->request->getPost('can_edit');
 
-        if (Permission::model()->hasGlobalPermission('participantpanel', 'update')) {
+        if (ParticipantShare::model()->canEditSharedParticipant($iParticipantId)
+            || $hasUpdatePermission
+            || $isSuperAdmin) {
             $time = time();
             $aData = array(
                 'participant_id' => $iParticipantId,
@@ -2109,7 +2188,7 @@ $url .= "_view"; });
                 'date_added' => date('Y-m-d H:i:s', $time),
                 'can_edit' => $bCanEdit
             );
-            ParticipantShare::model()->storeParticipantShare($aData);
+            ParticipantShare::model()->storeParticipantShare($aData, $permissions);
 
             ls\ajax\AjaxHelper::outputSuccess(gT("Participant shared."));
         } else {
@@ -2207,7 +2286,8 @@ $url .= "_view"; });
     {
         $participant_id = Yii::app()->request->getPost('participant_id');
         $can_edit = Yii::app()->request->getPost('can_edit');
-        $shareModel = ParticipantShare::model()->findByAttributes(array('participant_id' => $participant_id));
+        $share_uid = Yii::app()->request->getPost('share_uid');
+        $shareModel = ParticipantShare::model()->findByAttributes(array('participant_id' => $participant_id, 'share_uid' => $share_uid));
 
         if ($shareModel) {
             $shareModel->can_edit = ($can_edit == 'true' ? 1 : 0);
@@ -2331,10 +2411,17 @@ $url .= "_view"; });
      */
     public function attributeMap()
     {
+        $iSurveyId = Yii::app()->request->getPost('survey_id');
+        if (!Permission::model()->hasGlobalPermission('surveys', 'update')
+            && !Permission::model()->hasSurveyPermission($iSurveyId, 'tokens', 'update')
+        ) {
+            Yii::app()->setFlashMessage(gT('No permission'), 'error');
+            Yii::app()->getController()->redirect(['admin/participants/sa/displayParticipants']);
+        }
+
         Yii::app()->loadHelper('common');
         App()->getClientScript()->registerScriptFile(App()->getConfig('adminscripts').'attributeMap.js');
 
-        $iSurveyId = Yii::app()->request->getPost('survey_id');
         $redirect = Yii::app()->request->getPost('redirect');
         $count = Yii::app()->request->getPost('count');
         $iParticipantId = Yii::app()->request->getPost('participant_id');

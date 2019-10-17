@@ -424,11 +424,11 @@ class responses extends Survey_Common_Action
             $aViewUrls                  = array('listResponses_view');
             $model                      = SurveyDynamic::model($iSurveyId);
 
+
             // Reset filters from stats
             if (Yii::app()->request->getParam('filters') == "reset") {
                 Yii::app()->user->setState('sql_'.$iSurveyId, '');
             }
-
 
             // Page size
             if (Yii::app()->request->getParam('pageSize')) {
@@ -436,6 +436,14 @@ class responses extends Survey_Common_Action
             }
 
             // Model filters
+            if (isset($_SESSION['survey_' . $iSurveyId])) {
+                $sessionSurveyArray = App()->session->get('survey_' . $iSurveyId);
+                $visibleColumns = isset($sessionSurveyArray['filteredColumns']) ? $sessionSurveyArray['filteredColumns'] : null;
+                if (!empty($visibleColumns)){
+                    $model->setAttributes($visibleColumns,false);
+                }
+
+            };
             // Using safe search on dynamic column names would be far too much complex.
             // So we pass over the safe validation and directly set attributes (second parameter of setAttributes to false).
             // see: http://www.yiiframework.com/wiki/161/understanding-safe-validation-rules/
@@ -456,6 +464,15 @@ class responses extends Survey_Common_Action
                 }
             }
 
+            // Checks if Columns have been filtered
+            $filterableColumnsExist = !empty(isset($_SESSION['survey_' . $iSurveyId]['filteredColumns']) ? $_SESSION['survey_' . $iSurveyId]['filteredColumns'] : null);
+            $filteredColumns = [];
+            if ($filterableColumnsExist) {
+                $filteredColumns = $_SESSION['survey_' . $iSurveyId]['filteredColumns'];
+            }
+            $aData['filterableColumnsExist'] = $filteredColumns;
+            $aData['filteredColumns'] = $filteredColumns;
+
             // rendering
             $aData['model']             = $model;
             $aData['bHaveToken']        = $bHaveToken;
@@ -474,15 +491,24 @@ class responses extends Survey_Common_Action
      * Saves the hidden columns for response browsing in the session
      *
      * @access public
-     * @param $iSurveyID : survey id
+     *
+     * @param $surveyid
      */
 
-    public function setHiddenColumns($iSurveyId)
+    public function setFilteredColumns($surveyid)
     {
-        if (Permission::model()->hasSurveyPermission($iSurveyId, 'responses', 'read')) {
-            $aHiddenFields = explode('|', Yii::app()->request->getPost('aHiddenFields'));
-            $_SESSION['survey_'.$iSurveyId]['HiddenFields'] = $aHiddenFields;
+        if (Permission::model()->hasSurveyPermission($surveyid, 'responses', 'read')) {
+            $filteredColumns = [];
+            $columns = explode(',', Yii::app()->request->getPost('columns'));
+            foreach ($columns as $column){
+                if (!empty($column)){
+                    $filteredColumns[] = $column;
+                }
+            }
+            $_SESSION['survey_'.$surveyid]['filteredColumns'] = $filteredColumns;
         }
+        $this->getController()->redirect(["admin/responses", "sa"=>"browse", "surveyid"=>$surveyid]);
+
     }
 
 
@@ -615,8 +641,7 @@ class responses extends Survey_Common_Action
                     header('Content-Disposition: attachment; filename="'.sanitize_filename(rawurldecode($aFile['name'])).'"');
                     header('Content-Transfer-Encoding: binary');
                     header('Expires: 0');
-                    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-                    header('Pragma: public');
+                    header("Cache-Control: must-revalidate, no-store, no-cache");
                     header('Content-Length: '.filesize($sFileRealName));
                     readfile($sFileRealName);
                     exit;
@@ -1001,8 +1026,7 @@ class responses extends Survey_Common_Action
                 header('Content-Disposition: attachment; filename='.basename($zipfilename));
                 header('Content-Transfer-Encoding: binary');
                 header('Expires: 0');
-                header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-                header('Pragma: public');
+                header("Cache-Control: must-revalidate, no-store, no-cache");
                 header('Content-Length: '.filesize($tmpdir."/".$zipfilename));
                 readfile($tmpdir.'/'.$zipfilename);
                 unlink($tmpdir.'/'.$zipfilename);

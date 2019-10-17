@@ -430,11 +430,15 @@ class Survey extends LSActiveRecord
     public function rules()
     {
         return array(
+            array('sid', 'unique'),// Not in pk
+            array('sid', 'numerical', 'integerOnly'=>true,'min'=>1), // max ?
             array('gsid', 'numerical', 'integerOnly'=>true),
             array('datecreated', 'default', 'value'=>date("Y-m-d")),
             array('startdate', 'default', 'value'=>null),
             array('expires', 'default', 'value'=>null),
             array('admin,faxto', 'LSYii_Validators'),
+            array('admin', 'length', 'min' => 1, 'max'=>50),
+            array('faxto', 'length', 'min' => 0, 'max'=>20),
             array('adminemail', 'filter', 'filter'=>'trim'),
             array('bounce_email', 'filter', 'filter'=>'trim'),
             array('bounce_email', 'LSYii_EmailIDNAValidator', 'allowEmpty'=>true),
@@ -929,26 +933,30 @@ class Survey extends LSActiveRecord
         if (!isset($aData['datecreated'])) {
             $aData['datecreated'] = date('Y-m-d H:i:s');
         }
-
-        do {
-            // if wishSID is set check if it is not taken already
-            if (isset($aData['wishSID'])) {
-                $aData['sid'] = $aData['wishSID'];
-            } else {
-                $aData['sid'] = randomChars(6, '123456789');
-            }
-            $isresult = self::model()->findByPk($aData['sid']);
+        if(isset($aData['wishSID'])) {
+            $aData['sid'] = $aData['wishSID'];
             unset($aData['wishSID']);
         }
-        while (!is_null($isresult));
-
+        if(empty($aData['sid'])) {
+            $aData['sid'] = intval(randomChars(6, '123456789'));
+        }
         $survey = new self;
         foreach ($aData as $k => $v) {
             $survey->$k = $v;
         }
-        $sResult = $survey->save();
 
-        if (!$sResult) {
+        $attempts = 0;
+        /* Validate sid : > 1 and unique */
+        while(!$survey->validate(array('sid'))) {
+            $attempts++;
+            $survey->sid = intval(randomChars(6, '123456789'));
+            /* If it's happen : there are an issue in server … (or in randomChars function …) */
+            if($attempts > 50) {
+                throw new Exception("Unable to get a valid survey id after 50 attempts");
+            }
+        }
+
+        if (!$survey->save()) {
             $survey->sid = null;
         }
         return $survey;
@@ -1087,32 +1095,34 @@ class Survey extends LSActiveRecord
     {
         if ($this->active == 'N') {
             return 'inactive';
-        } elseif ($this->expires != '' || $this->startdate != '') {
+        }
+        if ($this->expires != '' || $this->startdate != '') {
             // Time adjust
             $sNow    = date("Y-m-d H:i:s", strtotime(Yii::app()->getConfig('timeadjust'), strtotime(date("Y-m-d H:i:s"))));
-            $sStop   = ($this->expires != '') ?date("Y-m-d H:i:s", strtotime(Yii::app()->getConfig('timeadjust'), strtotime($this->expires))) : $sNow;
-            $sStart  = ($this->startdate != '') ?date("Y-m-d H:i:s", strtotime(Yii::app()->getConfig('timeadjust'), strtotime($this->startdate))) : $sNow;
+            $sStop   = ($this->expires != '') ? date("Y-m-d H:i:s", strtotime(Yii::app()->getConfig('timeadjust'), strtotime($this->expires))) : null;
+            $sStart  = ($this->startdate != '') ? date("Y-m-d H:i:s", strtotime(Yii::app()->getConfig('timeadjust'), strtotime($this->startdate))) : null;
 
             // Time comparaison
             $oNow   = new DateTime($sNow);
             $oStop  = new DateTime($sStop);
             $oStart = new DateTime($sStart);
 
-            $bExpired = ($oStop < $oNow);
-            $bWillRun = ($oStart > $oNow);
+            $bExpired = (!is_null($sStop) && $oStop < $oNow);
+            $bWillRun = (!is_null($oStart) && $oStart > $oNow);
 
             if ($bExpired) {
                 return 'expired';
-            } elseif ($bWillRun) {
+            }
+            if ($bWillRun) {
+                // And what happen if $sStop < $sStart : must return something other ?
                 return 'willRun';
-            } else {
+            }
+            if(!is_null($sStop)) {
                 return 'willExpire';
             }
         }
-        // If it's active, and doesn't have expire date, it's running
-        else {
-            return 'running';
-        }
+        // No returned before : it's running
+        return 'running';
     }
 
 
@@ -1174,7 +1184,9 @@ class Survey extends LSActiveRecord
     public function getPartialAnswers()
     {
         $table = $this->responsesTableName;
-        Yii::app()->cache->flush();
+        if (method_exists(Yii::app()->cache, 'flush')) {
+            Yii::app()->cache->flush();
+        }
         if (!Yii::app()->db->schema->getTable($table)) {
             return null;
         } else {
@@ -1398,7 +1410,9 @@ class Survey extends LSActiveRecord
     public function getFullAnswers()
     {
         $table = $this->responsesTableName;
-        Yii::app()->cache->flush();
+        if (method_exists(Yii::app()->cache, 'flush')) {
+            Yii::app()->cache->flush();
+        }
         if (!Yii::app()->db->schema->getTable($table)) {
             return null;
         } else {
@@ -1418,7 +1432,9 @@ class Survey extends LSActiveRecord
     public function getCountFullAnswers()
     {
         $sResponseTable = $this->responsesTableName;
-        Yii::app()->cache->flush();
+        if (method_exists(Yii::app()->cache, 'flush')) {
+            Yii::app()->cache->flush();
+        }
         if ($this->active != 'Y') {
             return 0;
         } else {
@@ -1437,7 +1453,9 @@ class Survey extends LSActiveRecord
     public function getCountPartialAnswers()
     {
         $table = $this->responsesTableName;
-        Yii::app()->cache->flush();
+        if (method_exists(Yii::app()->cache, 'flush')) {
+            Yii::app()->cache->flush();
+        }
         if ($this->active != 'Y') {
             return 0;
         } else {
@@ -1567,6 +1585,11 @@ class Survey extends LSActiveRecord
         // Survey group filter
         if (isset($this->gsid)) {
             $criteria->compare("t.gsid", $this->gsid, false);
+        }
+
+        // show only surveys belonging to selected survey group
+        if (!empty(Yii::app()->request->getParam('id'))) {
+            $criteria->addCondition("t.gsid = " . sanitize_int(Yii::app()->request->getParam('id')), 'AND');
         }
 
         // Active filter

@@ -132,6 +132,58 @@
                     </div>
                 </div>
 
+                {# Container #}
+                <div class='col-sm-12 col-md-2'>
+                    <div class='form-group row'>
+                        <label for='simple_edit_options_container' class='control-label'> {{ gT("Survey container") }} </label>
+                        <div class='col-sm-12'>
+                            <div class="btn-group" data-toggle="buttons">
+                                <label class="btn btn-default">
+                                    <input type='radio' name='container' value='on' class='selector_option_radio_field simple_edit_options_container ' data-id='container'/>
+                                    {{ gT("Yes") }}
+                                </label>
+                                <label class="btn btn-default">
+                                    <input type='radio' name='container' value='off' class='selector_option_radio_field simple_edit_options_container ' data-id='container'/>
+                                    {{ gT("No") }}
+                                </label>
+                                {# If this is a root template setting, don't show the inherit button #}
+                                {% if templateConfiguration.sid is not empty or templateConfiguration.gsid is not empty %}
+                                    <label class="btn btn-default">
+                                        <input type='radio' name='container' value='inherit' class='selector_option_radio_field simple_edit_options_container ' data-id='container'/>
+                                        {{ gT("Inherit") }}
+                                    </label>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# hideprivacyinfo #}
+                <div class='col-sm-12 col-md-2'>
+                    <div class='form-group row'>
+                        <label for='simple_edit_options_hideprivacyinfo' class='control-label'>{{ gT("Hide privacy info") }}</label>
+                        <div class='col-sm-12'>
+                            <div class="btn-group" data-toggle="buttons">
+                                <label class="btn btn-default">
+                                    <input type='radio' name='hideprivacyinfo' value='on' class='selector_option_radio_field simple_edit_options_hideprivacyinfo ' data-id='hideprivacyinfo'/>
+                                    {{ gT("Yes") }}
+                                </label>
+                                <label class="btn btn-default">
+                                    <input type='radio' name='hideprivacyinfo' value='off' class='selector_option_radio_field simple_edit_options_hideprivacyinfo ' data-id='hideprivacyinfo'/>
+                                    {{ gT("No") }}
+                                </label>
+                                {# If this is a root template setting, don't show the inherit button #}
+                                {% if templateConfiguration.sid is not empty or templateConfiguration.gsid is not empty %}
+                                    <label class="btn btn-default">
+                                        <input type='radio' name='hideprivacyinfo' value='inherit' class='selector_option_radio_field simple_edit_options_hideprivacyinfo ' data-id='hideprivacyinfo'/>
+                                        {{ gT("Inherit") }}
+                                    </label>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class='col-sm-12 col-md-3 col-lg-3'>
                     {# Show popups #}
                     <div class='form-group row'>
@@ -162,6 +214,43 @@
                     </div>
                 </div>
 
+                {# Fix num auto (and real num value) #}
+                <div class='col-sm-12 col-md-3'>
+                    <div class='form-group row'>
+                        <label for='simple_edit_options_fixnumauto' class='control-label'>{{ gT("Fix automatically numeric value") }}</label>
+                        <div class='col-sm-12'>
+                            <div class="btn-group" data-toggle="buttons">
+                                <label class="btn btn-default">
+                                    {# bFixNumAuto : 1 and bNumRealValue : 0 #}
+                                    <input type='radio' name='fixnumauto' value='enable' class='selector_option_radio_field simple_edit_options_fixnumauto' data-id='fixnumauto'/>
+                                    {{ gT("Yes") }}
+                                </label>
+                                <label class="btn btn-default">
+                                    {# bFixNumAuto : 0 and bNumRealValue : 0 #}
+                                    <input type='radio' name='fixnumauto' value='partial' class='selector_option_radio_field simple_edit_options_fixnumauto' data-id='fixnumauto'/>
+                                    {{ gT("For expression") }}
+                                </label>
+                                <label class="btn btn-default">
+                                    {# bFixNumAuto : 0 and bNumRealValue : 1 #}
+                                    <input type='radio' name='fixnumauto' value='disable' class='selector_option_radio_field simple_edit_options_fixnumauto' data-id='fixnumauto'/>
+                                    {{ gT("No") }}
+                                </label>
+                                {% if templateConfiguration.sid is not empty or templateConfiguration.gsid is not empty %}
+                                    <label class="btn btn-default">
+                                        <input type='radio' name='fixnumauto' value='inherit' class='selector_option_radio_field simple_edit_options_fixnumauto' data-id='fixnumauto'/>
+                                        {{ gT("Inherit") }}
+                                    </label>
+                                {% else %}
+                                    {# Since added after theme distribution and don't want reset : use empty value for leave default #}
+                                    <label class="btn btn-default">
+                                        <input type='radio' name='fixnumauto' value='off' class='selector_option_radio_field simple_edit_options_fixnumauto' data-id='fixnumauto'/>
+                                        {{ gT("Default") }}
+                                    </label>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
             <div class='row action_hide_on_inherit'>

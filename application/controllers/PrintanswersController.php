@@ -128,9 +128,9 @@ class PrintanswersController extends LSYii_Controller
         // Remove all <script>...</script> content from result.
         Yii::import('application.helpers.viewHelper');
         foreach ($groupArray as &$group) {
-            $group['description'] = viewHelper::flatEllipsizeText($group['description'], true, 0);
+            $group['description'] = viewHelper::purified($group['description']);
             foreach ($group['answerArray'] as &$answer) {
-                $answer['question'] = viewHelper::flatEllipsizeText($answer['question'], true, 0);
+                $answer['question'] = viewHelper::purified($answer['question']);
             }
         }
 
@@ -178,8 +178,8 @@ class PrintanswersController extends LSYii_Controller
 
             $oPDF->writeHTML($html, true, false, true, false, '');
 
-            header("Pragma: public");
-            header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+            header("Cache-Control: must-revalidate, no-store, no-cache"); // Don't store in cache because it is sensitive data
+            
             $sExportFileName = sanitize_filename($sSurveyName);
             $oPDF->Output($sExportFileName."-".$iSurveyID.".pdf", "D");
             LimeExpressionManager::FinishProcessingGroup();

@@ -286,7 +286,12 @@ class QuestionTemplate extends CFormModel
                     $this->aCustomAttributes = array();
                     foreach ($this->oConfig->custom_attributes->attribute as $oCustomAttribute) {
                         $attribute_name = (string) $oCustomAttribute->name;
-                        $oAttributeValue = QuestionAttribute::model()->find("qid=:qid and attribute=:custom_attribute", array('qid'=>$oQuestion->qid, 'custom_attribute'=>$attribute_name));
+                        if (isset($oCustomAttribute->i18n) && $oCustomAttribute->i18n){
+                            $sLang = App()->language;
+                            $oAttributeValue = QuestionAttribute::model()->find("qid=:qid and attribute=:custom_attribute and language =:language", array('qid'=>$oQuestion->qid, 'custom_attribute'=>$attribute_name, 'language'=>$sLang));
+                        } else {
+                            $oAttributeValue = QuestionAttribute::model()->find("qid=:qid and attribute=:custom_attribute", array('qid'=>$oQuestion->qid, 'custom_attribute'=>$attribute_name));
+                        }
                         if (is_object($oAttributeValue)) {
                             $this->aCustomAttributes[$attribute_name] = $oAttributeValue->value;
                         } else {
@@ -420,11 +425,17 @@ class QuestionTemplate extends CFormModel
                             if (!empty($oConfig->files->preview->filename)){
                                 $fileName = json_decode(json_encode($oConfig->files->preview->filename), TRUE)[0];
                                 $previewPath = $sFullPathToQuestionTemplate."/assets/".$fileName;
-                                if(is_file($previewPath) && LSYii_ImageValidator::validateImage($previewPath)) {
-                                    $aQuestionTemplates[$file]['preview'] = App()->getAssetManager()->publish($previewPath);
+                                if(is_file($previewPath)) {
+                                    $check = LSYii_ImageValidator::validateImage($previewPath);
+                                    if($check['check']) {
+                                        $aQuestionTemplates[$file]['preview'] = App()->getAssetManager()->publish($previewPath);
+                                    } else {
+                                        /* Log it a theme.question.$oConfig->name as error, review ? */
+                                        Yii::log("Unable to use $fileName for preview in $sFullPathToQuestionTemplate/assets/",'error','theme.question.'.$oConfig->metadata->name);
+                                    }
                                 } else {
-                                    /* Log it a theme.question.$oConfig->name as error, review ? */
-                                    Yii::log("Unable to use $fileName for preview in $sFullPathToQuestionTemplate/assets/",'error','theme.question.'.$oConfig->metadata->name);
+                                        /* Log it a theme.question.$oConfig->name as error, review ? */
+                                        Yii::log("Unable to find $fileName for preview in $sFullPathToQuestionTemplate/assets/",'error','theme.question.'.$oConfig->metadata->name);
                                 }
                             }
                             if(empty($aQuestionTemplates[$file]['preview'])) {

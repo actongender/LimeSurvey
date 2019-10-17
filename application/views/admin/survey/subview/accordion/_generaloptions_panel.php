@@ -136,7 +136,12 @@
                 <?php $admin = empty($oSurvey->admin) && !empty($oSurvey->owner) ? $oSurvey->owner->full_name : $oSurvey->admin; ?>
                 <label class=" control-label"  for='admin'><?php  eT("Administrator:"); ?></label>
                 <div class="">
-                    <input class="form-control" type='text' size='50' id='admin' name='admin' value="<?php echo htmlspecialchars($admin); ?>" />
+                    <?php echo CHtml::textField('admin',$admin,array(
+                        'class' => 'form-control',
+                        'id' => 'admin',
+                        'size' => '50',
+                        'maxlength' => '50',
+                    )); ?>
                 </div>
             </div>
 
@@ -144,7 +149,7 @@
             <div class="form-group">
                 <?php //Switch for creation/editing ?>
                 <?php $admin_email = empty($oSurvey->adminemail) && !empty($oSurvey->owner) ? $oSurvey->owner->email : $oSurvey->adminemail; ?>
-                <label class=" control-label"  for='adminemail'><?php  eT("Admin email:"); ?></label>
+                <label class=" control-label"  for='adminemail'><?php  eT("Administrator email address:"); ?></label>
                 <div class="">
                     <input class="form-control" type='email' size='50' id='adminemail' name='adminemail' value="<?php echo htmlspecialchars($admin_email); ?>" />
                 </div>
@@ -154,7 +159,7 @@
             <div class="form-group">
                 <?php //Switch for creation/editing ?>
                 <?php $bounce_email = ($oSurvey->bounce_email ? $oSurvey->bounce_email : $oSurvey->adminemail); ?>
-                <label class=" control-label"  for='bounce_email'><?php  eT("Bounce email:"); ?></label>
+                <label class=" control-label"  for='bounce_email'><?php  eT("Bounce email address:"); ?></label>
                 <div class="">
                     <input class="form-control" type='email' size='50' id='bounce_email' name='bounce_email' value="<?php echo htmlspecialchars($bounce_email); ?>" />
                 </div>
@@ -164,7 +169,12 @@
             <div class="form-group">
                 <label class=" control-label"  for='faxto'><?php  eT("Fax to:"); ?></label>
                 <div class="">
-                    <input class="form-control" type='text' size='50' id='faxto' name='faxto' value="<?php echo htmlspecialchars($oSurvey->faxto); ?>" />
+                    <?php echo CHtml::textField('faxto',$oSurvey->faxto,array(
+                        'class' => 'form-control',
+                        'id' => 'faxto',
+                        'size' => '20',
+                        'maxlength' => '20',
+                    )); ?>
                 </div>
             </div>
 
@@ -211,7 +221,7 @@
 
             <!-- Admin email -->
             <div class="form-group">
-                <label class=" control-label" for='adminemail'><?php  eT("Admin email:") ; ?></label>
+                <label class=" control-label" for='adminemail'><?php  eT("Administrator email address:") ; ?></label>
                 <div class="">
                     <input type='email' size='30'   class="form-control"   id='adminemail' name='adminemail' value='<?php echo $owner['email'] ; ?>' />
                 </div>
@@ -219,7 +229,7 @@
 
             <!-- Bounce Email -->
             <div class="form-group">
-                <label class=" control-label" for='bounce_email'><?php  eT("Bounce Email:") ; ?></label>
+                <label class=" control-label" for='bounce_email'><?php  eT("Bounce email address:") ; ?></label>
                 <div class="">
                     <input type='email' size='50'  class="form-control"  id='bounce_email' name='bounce_email' value='<?php echo $owner['bounce_email'] ; ?>' />
                 </div>
@@ -227,7 +237,7 @@
 
             <!-- Fax to -->
             <div class="form-group">
-                <label class=" control-label" for='faxto'><?php  eT("Fax to:") ; ?></label>
+                <label class=" control-label" for='faxto'><?php  eT("Fax number:") ; ?></label>
                 <div class="">
                     <input type='text' size='50' id='faxto' name='faxto'  class="form-control" />
                 </div>

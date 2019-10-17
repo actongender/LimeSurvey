@@ -51,7 +51,7 @@ class SurveymenuEntries extends LSActiveRecord
         // NOTE: you should only define rules for those attributes that
         // will receive user inputs.
         return array(
-            array('changed_at', 'required'),
+            array('title, menu_title, menu_icon, menu_icon_type, changed_at', 'required'),
             array('menu_id, user_id, ordering, changed_by, created_by', 'numerical', 'integerOnly'=>true),
             array('title, menu_title, menu_icon, menu_icon_type, menu_class, menu_link, action, template, partial, permission, permission_grade, classes, getdatamethod', 'length', 'max'=>255),
             array('name', 'unique'),
@@ -332,7 +332,7 @@ class SurveymenuEntries extends LSActiveRecord
             ),
             array(
                 'name' => 'title',
-                'type' => 'raw'
+                'type' => 'text'
             ),
             array(
                 'name' => 'name',
@@ -358,7 +358,7 @@ class SurveymenuEntries extends LSActiveRecord
             array(
                 'name' => 'menu_link',
                 'value' => 'SurveymenuEntries::returnCombinedMenuLink($data)',
-                'type' => 'raw'
+                'type' => 'text'
             ),
             array(
                 'name' => 'language',
@@ -515,24 +515,19 @@ class SurveymenuEntries extends LSActiveRecord
     {
 
         $oDB = Yii::app()->db;
-        switchMSSQLIdentityInsert('surveymenu_entries', true);
         $oTransaction = $oDB->beginTransaction();
         try {
-
             $oDB->createCommand()->truncateTable('{{surveymenu_entries}}');
-
             $basicMenues = LsDefaultDataSets::getSurveyMenuEntryData();
             foreach ($basicMenues as $basicMenu) {
                 $oDB->createCommand()->insert("{{surveymenu_entries}}", $basicMenu);
             }
-
             $oTransaction->commit();
 
         } catch (Exception $e) {
             throw $e;
             return false;
         }
-        switchMSSQLIdentityInsert('surveymenu_entries', false);
         return true;
     }
 

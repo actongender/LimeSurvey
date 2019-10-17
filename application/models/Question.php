@@ -134,6 +134,10 @@ class Question extends LSActiveRecord
             if ($oParentQuestion->other == "Y") {
                 $aRules[] = array('title', 'LSYii_CompareInsensitiveValidator', 'compareValue'=>'other', 'operator'=>'!=', 'message'=> sprintf(gT("'%s' can not be used if the 'Other' option for this question is activated."), "other"), 'except' => 'archiveimport');
             }
+            // #14495: comment suffix can't be used with P Question (collapse with table name in database)
+            if ($oParentQuestion->type == "P") {
+                $aRules[] = array('title', 'match', 'pattern'=>'/comment$/', 'not'=>true, 'message'=> gT("'comment' suffix can not be used with multiple choice with comments."));
+            }
         } else {
             // Disallow other if sub question have 'other' for title
             $oSubquestionOther = Question::model()->find("parent_qid=:parent_qid and LOWER(title)='other'", array("parent_qid"=>$this->qid));
@@ -844,7 +848,7 @@ class Question extends LSActiveRecord
 
         if ($oSurvey->active != "Y" && Permission::model()->hasSurveyPermission($this->sid, 'surveycontent', 'delete')) {
             $button .= '<a class="btn btn-default"  data-toggle="tooltip" title="'.gT("Delete").'" href="#" role="button"'
-                ." onclick='$.bsconfirm(\"".gT("Deleting  will also delete any answer options and subquestions it includes. Are you sure you want to continue?","js")
+                ." onclick='$.bsconfirm(\"".CHtml::encode(gT("Deleting  will also delete any answer options and subquestions it includes. Are you sure you want to continue?"))
                             ."\", {\"confirm_ok\": \"".gT("Yes")."\", \"confirm_cancel\": \"".gT("No")."\"}, function() {"
                             . convertGETtoPOST(Yii::app()->createUrl("admin/questions/sa/delete/", ["surveyid" => $this->sid, "qid" => $this->qid, "gid" => $gid_search]))
                         ."});'>"
@@ -976,8 +980,8 @@ class Question extends LSActiveRecord
                 'desc'=>'t.qid desc',
             ),
             'question_order'=>array(
-                'asc'=>'t.question_order asc',
-                'desc'=>'t.question_order desc',
+                'asc'=>'groups.group_order asc, t.question_order asc',
+                'desc'=>'groups.group_order desc,t.question_order desc',
             ),
             'title'=>array(
                 'asc'=>'t.title asc',
@@ -1004,7 +1008,9 @@ class Question extends LSActiveRecord
             ),
         );
 
-        $sort->defaultOrder = array('question_order' => CSort::SORT_ASC);
+        $sort->defaultOrder = array(
+            'question_order' => CSort::SORT_ASC,
+        );
 
         $criteria = new CDbCriteria;
         $criteria->with = array('groups');
@@ -1096,10 +1102,14 @@ class Question extends LSActiveRecord
     public function getBasicFieldName()
     {
         if ($this->parent_qid != 0) {
+            /* Fix #15228: This survey throw a Error when try to print : seems subquestion gid can be outdated */
+            // Use parents relation
+            if(!empty($this->parents)) { // Maybe need to throw error or find it if it's not set ? 
+                return "{$this->parents->sid}X{$this->parents->gid}X{$this->parent_qid}";
+            }
             return "{$this->sid}X{$this->gid}X{$this->parent_qid}";
-        } else {
-            return "{$this->sid}X{$this->gid}X{$this->qid}";
         }
+        return "{$this->sid}X{$this->gid}X{$this->qid}";
     }
 
     /**

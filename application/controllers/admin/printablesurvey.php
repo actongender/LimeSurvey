@@ -89,10 +89,10 @@ class printablesurvey extends Survey_Common_Action
             $sFullTemplatePath = $oTemplate->path;
             $sFullTemplateUrl = Template::model()->getTemplateURL($templatename)."/";
             if (!defined('PRINT_TEMPLATE_DIR')) {
-                define('PRINT_TEMPLATE_DIR', $sFullTemplatePath, true);
+                define('PRINT_TEMPLATE_DIR', $sFullTemplatePath);
             }
             if (!defined('PRINT_TEMPLATE_URL')) {
-                define('PRINT_TEMPLATE_URL', $sFullTemplateUrl, true);
+                define('PRINT_TEMPLATE_URL', $sFullTemplateUrl);
             }
 
             LimeExpressionManager::StartSurvey($surveyid, 'survey', null, false, LEM_PRETTY_PRINT_ALL_SYNTAX);
@@ -529,7 +529,7 @@ class printablesurvey extends Survey_Common_Action
                         }
                         if (isset($aQuestionAttributes['cssclass']) && $aQuestionAttributes['cssclass'] != "") {
                             $attributeClass = trim(LimeExpressionManager::ProcessString($aQuestionAttributes['cssclass'], null, array(), 1, 1, false, false, true));
-                            $question['class'] .= " ".Chtml::encode($attributeClass);
+                            $question['class'] .= " ".CHtml::encode($attributeClass);
                         }
                         /* Add a PRINT_QUESTION_CODE : same than used in "automatic system generation (with EM condition) */
                         $question['print_code'] = "{$question['number']} [{$question['code']}]";
@@ -1306,6 +1306,7 @@ class printablesurvey extends Survey_Common_Action
             // Previous version of PHP needs two regular expressions to do the same thing and thus will run a bit slower.
             $server_is_newer = version_compare(PHP_VERSION, '5.1.0', '>');
             $rounds = 0;
+            Template::getInstance($oSurvey->template);
             return Yii::app()->twigRenderer->renderTemplateFromFile('layout_print.twig', ['aSurveyInfo' => $aSurveyInfo, 'print' => $printarray], $bReturn);
             // die(print_r(['aSurveyInfo' => $aSurveyInfo, 'print' => $printarray], true));
             // echo self::_populate_template($oTemplate, 'survey', ['aSurveyInfo' => $aSurveyInfo, 'print' => $printarray]);

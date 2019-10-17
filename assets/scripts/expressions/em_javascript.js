@@ -347,6 +347,62 @@ function LEMlist()
 }
 
 /**
+ * Implementation of listifop( cmpAttr, op, value, retAttr, glue, sgqa1, ..., sgqaN )
+ * Returns a list of retAttr from sgqa1...sgqaN which pass the critiera (cmpAttr op value)
+ */
+function LEMlistifop()
+{
+    // takes variable number of arguments
+    var result = "";
+    var cmpAttr = arguments[0];
+    var op = arguments[1];
+    var value = arguments[2];
+    var retAttr = arguments[3];
+    var glue = arguments[4];
+
+    var validAttributes = "/code|gid|grelevance|gseq|jsName|mandatory|NAOK|qid|qseq|question|readWrite|relevanceStatus|relevance|rowdivid|sgqa|shown|type|valueNAOK|value/";
+
+    if ( ! cmpAttr.match( validAttributes ) ) {
+        return cmpAttr +" not recognized ?!";
+    }
+    if ( ! retAttr.match( validAttributes ) ) {
+        return retAttr +" not recognized ?!";
+    }
+
+    if ( op == 'RX' ) {
+        var reg = new RegExp( value.substr( 1, value.length-2 ) );
+    }
+
+    for ( i=5; i < arguments.length; ++i ) {
+        var sgqa = arguments[i];
+        var cmpVal = LEMval( sgqa +"."+ cmpAttr ); // Equal to LimeExpressionManager::GetVarAttribute($sgqa,$cmpAttr,null,-1,-1) ?
+        var match = false;
+
+        switch(op)
+        {
+            case '==': case 'eq': match = (cmpVal == value); break;
+            case '>=': case 'ge': match = (cmpVal >= value); break;
+            case '>':  case 'gt': match = (cmpVal > value);  break;
+            case '<=': case 'le': match = (cmpVal <= value); break;
+            case '<':  case 'lt': match = (cmpVal < value);  break;
+            case '!=': case 'ne': match = (cmpVal != value); break;
+            case 'RX': try { match = reg.test( cmpVal ); }
+            catch (err) { return "Invalid RegEx"; } break;
+        }
+
+        if ( match ) {
+            retVal = LEMval( sgqa +"."+ retAttr ); // Equal to LimeExpressionManager::GetVarAttribute($sgqa,$retAttr,null,-1,-1) ?
+            if ( result != "" ) {
+                result += glue;
+            }
+            result += retVal;
+        }
+    }
+
+    return result;
+}
+
+/**
  *  Returns Natural logarithm of a number
  */
 
@@ -368,6 +424,144 @@ function LEMlog()
     }else{
         return Math.log(arguments[0])/Math.log(base);
     }
+}
+
+/**
+ * max like php in LimeSurvey, start by https://github.com/kvz/locutus/blob/master/src/php/math/max.js
+ * @see https://bugs.limesurvey.org/view.php?id=14337
+ * Review for ExpressionManager
+ **/
+function LEMmax () {
+  // original at: http://locutus.io/php/max/
+  // original by: Onno Marsman (https://twitter.com/onnomarsman)
+  //  revised by: Denis Chenu for LimeSurvey specific
+  //      note 1: Long code cause we're aiming for maximum PHP compatibility
+  //   example 1: max(1, 3, 5, 6, 7,'')
+  //   returns 1: 7
+  //   example 2: max(1, 'hello','')
+  //   returns 2: 'hello'
+  //   example 3: max('hello', 1,'')
+  //   returns 3: 'hello'
+  //   example 4: max('2hello', 1,'')
+  //   returns 4: '2hello'
+  //   example 5: max('1hello', 2,'')
+  //   returns 5: 2
+  //   example 6: max(-1, -2,'')
+  //   returns 6: -1
+
+  var ar
+  var retVal
+  var i = 0
+  var n = 0
+  var argv = arguments
+  var argc = argv.length
+
+  var _compare = function (current, next) {
+    if(next === '') {
+      return -1;
+    }
+    if(current === '') {
+      return 1;
+    }
+    if (current === next) {
+      return 0
+    }
+    if (isNaN(next) && !isNaN(current)) {
+      return (next.toString() > current.toString() ? 1 : -1)
+    }
+    if (isNaN(current) && !isNaN(next)) {
+      return (next.toString() > current.toString() ? 1 : -1)
+    }
+
+    return (next > current ? 1 : -1)
+  }
+
+  if (argc === 0) {
+    return '';
+  }
+  if (argc === 1) {
+    return argv[0];
+  }
+
+  ar = argv
+  retVal = ar[0]
+  for (i = 1, n = ar.length; i < n; ++i) {
+    if (_compare(retVal, ar[i]) === 1) {
+      retVal = ar[i]
+    }
+  }
+
+  return retVal
+}
+/**
+ * min like php in LimeSurvey : https://github.com/kvz/locutus/blob/master/src/php/math/min.js
+ * @see https://bugs.limesurvey.org/view.php?id=14337
+ * Review for ExpressionManager 
+ **/
+function LEMmin () {
+  // original at: http://locutus.io/php/max/
+  // original by: Onno Marsman (https://twitter.com/onnomarsman)
+  //  revised by: Denis Chenu for LimeSurvey specific
+  //      note 1: Long code cause we're aiming for maximum PHP compatibility
+  //   example 1: min(1, 3, 5, 6, 7)
+  //   returns 1: 1
+  //   example 2: max(1, 'hello')
+  //   returns 2: 1
+  //   example 3: max('hello', 1)
+  //   returns 3: 1
+  //   example 4: max('2hello', 1)
+  //   returns 4: 1
+  //   example 5: max('1hello', 2)
+  //   returns 5: '1hello'
+  //   example 6: min(-1, -2)
+  //   returns 6: -2
+  //   example 7: min(-1, '')
+  //   returns 7: ''
+
+  var ar
+  var retVal
+  var i = 0
+  var n = 0
+  var argv = arguments
+  var argc = argv.length
+
+  var _compare = function (current, next) {
+    if(next === '') {
+      return -1;
+    }
+    if(current === '') {
+      return 1;
+    }
+    if (current === next) {
+      return 0;
+    }
+    if (isNaN(next) && !isNaN(current)) {
+      return 1;
+    }
+    if (isNaN(current) && !isNaN(next)) {
+      return -1
+    }
+
+    return (next > current ? 1 : -1)
+  }
+
+  if (argc === 0) {
+    return '';
+  }
+  if (argc === 1) {
+    return argv[0];
+  }
+
+  ar = argv
+  retVal = ar[0]
+
+  for (i = 1, n = ar.length; i < n; ++i) {
+    if (_compare(retVal, ar[i]) === -1) {
+      retVal = ar[i]
+    }
+  }
+
+  return retVal
 }
 
  /**
@@ -509,11 +703,6 @@ function LEMval(alias)
     var varName = alias;
     var suffix = 'code';    // the default
     var value = "";
-    if(typeof bNumRealValue == 'undefined'){
-        bNumRealValue=false;
-    } // Allow to update {QCODE} even with text
-
-    /* If passed a number, return that number */
     if (str == '') return '';
     newval = str;
     if (LEMradix === ',') {
@@ -797,30 +986,31 @@ function LEMval(alias)
             }
 
             if (typeof attr.onlynum !== 'undefined' && attr.onlynum==1) {
-                if(value=="")
-                {
+                if(value=="") {
                     return "";
                 }
+
                 var checkNumericRegex = new RegExp(/^(-)?[0-9]*(,|\.)[0-9]*$/);
-                if(checkNumericRegex.test(value) && !bNumRealValue)
+                /* Set as number if regexp is OK AND lenght is > 1 (then not fix [-.,] #14533 and no need to fix single number) */
+                if( checkNumericRegex.test(value) && value.length > 1 )
                 {
                     var length = value.length;
                     var firstLetterIsNull = value.split("").shift() === '0';
+                    // @todo : use . or , according to LEMradix !
                     try{
                         var numtest = new Decimal(value);
                     } catch(e){
                         var numtest = new Decimal(value.toString().replace(/,/,'.'));
+                        // Error can still happen maybe but don't catch to know (and fix) it
                     }
-
-                    // If value is on same page : value use LEMradix, else use . (dot) : bug #10001
-                    // if (LEMradix === ',' && onSamePage )
-                    // {
-                    //     value = numtest.toString().replace(/\./,',');
-                    // }
                     value = numtest.valueOf();
                     if(value.length < length && firstLetterIsNull){
                         value = str_repeat('0', length).substr(0,(length - value.length))+''+value.toString();
                     }
+                    value = Number(value); /* If it's a number : always return a number */
+                }
+                if(LSvar.bNumRealValue) {
+                    return value;
                 }
                 return Number(value);
             }
@@ -852,14 +1042,19 @@ function LEMval(alias)
                 }
                 return value;
             }
-            else if(!isNaN(parseFloat(newval)) && isFinite(newval))
+            else if(!isNaN(parseFloat(value)) && isFinite(value))
             {
-                // If it's not a decimal number, just return value
-                try {
-                    var decimal_safe = new Decimal(value);
-                    return decimal_safe.toPrecision(value.length);
+                var length = value.length;
+                var firstLetterIsNull = value.split("").shift() === '0';
+                try{
+                    var numtest = new Decimal(value);
+                } catch(e){
+                    var numtest = new Decimal(value.toString().replace(/,/,'.'));
                 }
-                catch (ex) {
+                if(numtest.valueOf().length < length && firstLetterIsNull){
+                    value = value.toString(); /* return string as it is */
+                } else {
+                    value = Number(numtest.valueOf()); /* If it's a number : always return a number */
                 }
             }
 

@@ -48,14 +48,12 @@ class remotecontrol_handle
         if ($loginResult === true) {
             $this->_jumpStartSession($username);
             $sSessionKey = Yii::app()->securityManager->generateRandomString(32);
-            $sDatabasetype = Yii::app()->db->getDriverName();
             $session = new Session;
             $session->id = $sSessionKey;
-            $session->expire = time() + Yii::app()->getConfig('iSessionExpirationTime');
+            $session->expire = time() + (int) Yii::app()->getConfig('iSessionExpirationTime',ini_get('session.gc_maxlifetime'));
             $session->data = $username;
             $session->save();
             return $sSessionKey;
-
         }
         if (is_string($loginResult)) {
             return array('status' => $loginResult);
@@ -1473,7 +1471,7 @@ class remotecontrol_handle
      * Get properties of a question in a survey.
      *
      * @see \Question for available properties.
-     * Some more properties are available_answers, subquestions, attributes, attributes_lang, answeroptions, defaultvalue
+     * Some more properties are available_answers, subquestions, attributes, attributes_lang, answeroptions, answeroptions_multiscale, defaultvalue
      *
      * @access public
      * @param string $sSessionKey Auth credentials
@@ -1579,6 +1577,21 @@ class remotecontrol_handle
                                 $aData[$oAttribute['code']]['assessment_value'] = $oAttribute['assessment_value'];
                                 $aData[$oAttribute['code']]['scale_id'] = $oAttribute['scale_id'];
                                 $aData[$oAttribute['code']]['order'] = $oAttribute['sortorder'];
+                            }
+                            $aResult['answeroptions'] = $aData;
+                        } else {
+                                                   $aResult['answeroptions'] = 'No available answer options';
+                        }
+                    } else if ($sPropertyName == 'answeroptions_multiscale') {
+                        $oAttributes = Answer::model()->findAllByAttributes(array('qid' => $iQuestionID, 'language'=> $sLanguage), array('order'=>'sortorder'));
+                        if (count($oAttributes) > 0) {
+                            $aData = array();
+                            foreach ($oAttributes as $oAttribute) {
+                                $aData[$oAttribute['scale_id']][$oAttribute['code']]['code'] = $oAttribute['code'];
+                                $aData[$oAttribute['scale_id']][$oAttribute['code']]['answer'] = $oAttribute['answer'];
+                                $aData[$oAttribute['scale_id']][$oAttribute['code']]['assessment_value'] = $oAttribute['assessment_value'];
+                                $aData[$oAttribute['scale_id']][$oAttribute['code']]['scale_id'] = $oAttribute['scale_id'];
+                                $aData[$oAttribute['scale_id']][$oAttribute['code']]['order'] = $oAttribute['sortorder'];
                             }
                             $aResult['answeroptions'] = $aData;
                         } else {
@@ -2587,7 +2600,7 @@ class remotecontrol_handle
             $result_id = $survey_dynamic->insertRecords($aResponseData);
 
             if ($result_id) {
-                $oResponse = Response::model($iSurveyID)->findByAttributes(array('token' => $aResponseData['token'], 'id' => $result_id));
+                $oResponse = Response::model($iSurveyID)->findByAttributes(array('id' => $result_id));
                 foreach ($oResponse->getFiles() as $aFile) {
                     $sUploadPath = Yii::app()->getConfig('uploaddir')."/surveys/".$iSurveyID."/files/";
                     $sFileRealName = Yii::app()->getConfig('uploaddir')."/surveys/".$iSurveyID."/files/".$aFile['filename'];
@@ -2859,7 +2872,7 @@ class remotecontrol_handle
         $oFormattingOptions->output = 'file';
 
         $oExport = new ExportSurveyResultsService();
-        $sTempFile = $oExport->exportSurvey($iSurveyID, $sLanguageCode, $sDocumentType, $oFormattingOptions, '');
+        $sTempFile = $oExport->exportResponses($iSurveyID, $sLanguageCode, $sDocumentType, $oFormattingOptions, '');
         return new BigFile($sTempFile, true, 'base64');
     }
 
@@ -2926,7 +2939,7 @@ class remotecontrol_handle
 
         $sTableName = Yii::app()->db->tablePrefix.'survey_'.$iSurveyID;
 
-        $sTempFile = $oExport->exportSurvey($iSurveyID, $sLanguageCode, $sDocumentType, $oFormattingOptions, "{$sTableName}.token=".App()->db->quoteValue("$sToken"));
+        $sTempFile = $oExport->exportResponses($iSurveyID, $sLanguageCode, $sDocumentType, $oFormattingOptions, "{$sTableName}.token=".App()->db->quoteValue("$sToken"));
         return new BigFile($sTempFile, true, 'base64');
 
     }
@@ -3001,6 +3014,7 @@ class remotecontrol_handle
         $identity = new LSUserIdentity($sUsername, $sPassword);
         $identity->setPlugin($sPlugin);
         $event = new PluginEvent('remoteControlLogin');
+        $event->set('identity', $identity);
         $event->set('plugin', $sPlugin);
         $event->set('username', $sUsername);
         $event->set('password', $sPassword);

@@ -281,7 +281,7 @@ class GlobalSettings extends Survey_Common_Action
             || validateEmailAddress(Yii::app()->request->getPost('siteadminemail'))) {
             SettingGlobal::setSetting('siteadminemail', strip_tags(Yii::app()->request->getPost('siteadminemail')));
         } else {
-            $warning .= gT("Warning! Admin email was not saved because it was not valid.").'<br/>';
+            $warning .= gT("Warning! Administrator email address was not saved because it was not valid.").'<br/>';
         }
         SettingGlobal::setSetting('siteadminname', strip_tags(Yii::app()->getRequest()->getPost('siteadminname')));
         SettingGlobal::setSetting('shownoanswer', sanitize_int(Yii::app()->getRequest()->getPost('shownoanswer')));
@@ -302,6 +302,7 @@ class GlobalSettings extends Survey_Common_Action
         SettingGlobal::setSetting('iSessionExpirationTime', $iSessionExpirationTime);
         SettingGlobal::setSetting('ipInfoDbAPIKey', Yii::app()->getRequest()->getPost('ipInfoDbAPIKey'));
         SettingGlobal::setSetting('pdffontsize', $iPDFFontSize);
+        SettingGlobal::setSetting('pdfshowsurveytitle', Yii::app()->getRequest()->getPost('pdfshowsurveytitle') == '1' ? 'Y' : 'N');
         SettingGlobal::setSetting('pdfshowheader', Yii::app()->getRequest()->getPost('pdfshowheader') == '1' ? 'Y' : 'N');
         SettingGlobal::setSetting('pdflogowidth', $iPDFLogoWidth);
         SettingGlobal::setSetting('pdfheadertitle', Yii::app()->getRequest()->getPost('pdfheadertitle'));

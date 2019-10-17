@@ -33,6 +33,10 @@ class Authdb extends AuthPluginBase
      */
     public function createNewUser()
     {
+        if (!Permission::model()->hasGlobalPermission('users', 'create')) {
+            return;
+        }
+
         // Do nothing if the user to be added is not DB type
         if (flattenText(Yii::app()->request->getPost('user_type')) != 'DB') {
             return;
@@ -105,8 +109,8 @@ class Authdb extends AuthPluginBase
         }
 
         $this->getEvent()->getContent($this)
-                ->addContent(CHtml::tag('span', array(), "<label for='user'>".gT("Username")."</label>".CHtml::textField('user', $sUserName, array('size'=>40, 'maxlength'=>40, 'class'=>"form-control"))))
-                ->addContent(CHtml::tag('span', array(), "<label for='password'>".gT("Password")."</label>".CHtml::passwordField('password', $sPassword, array('size'=>40, 'maxlength'=>40, 'class'=>"form-control"))));
+                ->addContent(CHtml::tag('span', array(), "<label for='user'>".gT("Username")."</label>".CHtml::textField('user', $sUserName, array('size'=>72, 'maxlength'=>72, 'class'=>"form-control"))))
+                ->addContent(CHtml::tag('span', array(), "<label for='password'>".gT("Password")."</label>".CHtml::passwordField('password', $sPassword, array('size'=>72, 'maxlength'=>72, 'class'=>"form-control"))));
     }
 
     public function newUserSession()

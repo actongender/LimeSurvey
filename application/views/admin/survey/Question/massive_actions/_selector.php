@@ -42,7 +42,7 @@
             'modalType' => 'yes-no',
             'keepopen' => 'yes',
             'sModalTitle' => gT('Delete question(s)'),
-            'htmlModalBody' => gT('Are you sure you want to delete all those questions??'),
+            'htmlModalBody' => gT('Deleting these questions will also delete their corresponding answer options and subquestions. Are you sure you want to continue??'),
         );
     }
     if(!$oSurvey->isActive) {
@@ -67,27 +67,25 @@
         );
     }
 
-    if(!$oSurvey->isActive) {    
-        // Set mandatory
-        $aActions[] = array(
-            // li element
-            'type' => 'action',
-            'action' => 'set-mandatory',
-            'url' => App()->createUrl('/admin/questions/sa/setMultipleMandatory/'),
-            'iconClasses' => 'fa fa-asterisk text-danger',
-            'text' => gT('Set "Mandatory" state'),
-            'grid-reload' => 'yes',
+    // Set mandatory
+    $aActions[] = array(
+        // li element
+        'type' => 'action',
+        'action' => 'set-mandatory',
+        'url' => App()->createUrl('/admin/questions/sa/setMultipleMandatory/'),
+        'iconClasses' => 'fa fa-asterisk text-danger',
+        'text' => gT('Set "Mandatory" state'),
+        'grid-reload' => 'yes',
 
-            // modal
-            'actionType' => 'modal',
-            'modalType' => 'yes-no',
-            'yes' => gT('Apply'),
-            'no' => gT('Cancel'),
-            'keepopen' => 'no',
-            'sModalTitle' => gT('Set "Mandatory" state'),
-            'htmlModalBody' => $this->renderPartial('./survey/Question/massive_actions/_set_questions_mandatory', array(), true),
-        );
-    }
+        // modal
+        'actionType' => 'modal',
+        'modalType' => 'yes-no',
+        'yes' => gT('Apply'),
+        'no' => gT('Cancel'),
+        'keepopen' => 'no',
+        'sModalTitle' => gT('Set "Mandatory" state'),
+        'htmlModalBody' => $this->renderPartial('./survey/Question/massive_actions/_set_questions_mandatory', array(), true),
+    );
 
     // Set CSS Class
     $aActions[] = array(

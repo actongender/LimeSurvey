@@ -246,28 +246,38 @@ class questiongroups extends Survey_Common_Action
      * @access public
      * @return void
      */
-    public function delete($iSurveyId, $iGroupId)
+    public function delete($iSurveyId=null, $iGroupId=null)
     {
-        $iSurveyId = sanitize_int($iSurveyId);
-
-        if (Permission::model()->hasSurveyPermission($iSurveyId, 'surveycontent', 'delete')) {
-            LimeExpressionManager::RevertUpgradeConditionsToRelevance($iSurveyId);
-
-            $iGroupId = sanitize_int($iGroupId);
-            $iGroupsDeleted = QuestionGroup::deleteWithDependency($iGroupId, $iSurveyId);
-
-            if ($iGroupsDeleted > 0) {
-                fixSortOrderGroups($iSurveyId);
-                Yii::app()->setFlashMessage(gT('The question group was deleted.'));
-            } else {
-                            Yii::app()->setFlashMessage(gT('Group could not be deleted'), 'error');
-            }
-            LimeExpressionManager::UpgradeConditionsToRelevance($iSurveyId);
-            $this->getController()->redirect(array('admin/survey/sa/listquestiongroups/surveyid/'.$iSurveyId));
-        } else {
-            Yii::app()->user->setFlash('error', gT("Access denied"));
-            $this->getController()->redirect(Yii::app()->request->urlReferrer);
+        if(is_null($iGroupId)) {
+            $iGroupId = Yii::app()->getRequest()->getPost('gid');
         }
+        $oQuestionGroup = QuestionGroup::model()->find("gid = :gid",array(":gid"=>$iGroupId));
+        if(empty($oQuestionGroup)) {
+            throw new CHttpException(401, gT("Invalid question id"));
+        }
+        /* Test the surveyid from question, not from submitted value */
+        $iSurveyId = $oQuestionGroup->sid;
+        if(!Permission::model()->hasSurveyPermission($iSurveyId, 'surveycontent', 'delete')) {
+            throw new CHttpException(403, gT("You are not authorized to delete questions."));
+        }
+        if(!Yii::app()->getRequest()->isPostRequest) {
+            throw new CHttpException(405, gT("Invalid action"));
+        }
+
+        LimeExpressionManager::RevertUpgradeConditionsToRelevance($iSurveyId);
+
+        $iGroupId = sanitize_int($iGroupId);
+        $iGroupsDeleted = QuestionGroup::deleteWithDependency($iGroupId, $iSurveyId);
+
+        if ($iGroupsDeleted > 0) {
+            fixSortOrderGroups($iSurveyId);
+            Yii::app()->setFlashMessage(gT('The question group was deleted.'));
+        } else {
+            Yii::app()->setFlashMessage(gT('Group could not be deleted'), 'error');
+        }
+
+        LimeExpressionManager::UpgradeConditionsToRelevance($iSurveyId);
+        $this->getController()->redirect(array('admin/survey/sa/listquestiongroups/surveyid/'.$iSurveyId));
     }
 
     public function view($surveyid, $gid)
@@ -423,23 +433,42 @@ class questiongroups extends Survey_Common_Action
                 foreach ($grouparray as $aQuestiongroup) {
                     
                     //first set up the ordering for questiongroups
-                    $oQuestiongroups = QuestionGroup::model()->findAll("gid=:gid AND sid=:sid", [':gid'=> $aQuestiongroup['gid'], ':sid'=> $surveyid]);
-                    array_map(function($oQuestiongroup) use ($aQuestiongroup, $success)
-                    {
-                        $oQuestiongroup->group_order = $aQuestiongroup['group_order'];
-                        $success = $success && $oQuestiongroup->save();
-                    }, $oQuestiongroups);
+                    $oQuestiongroups = QuestionGroup::model()->findAll(
+                        "gid=:gid AND sid=:sid", 
+                        [':gid'=> $aQuestiongroup['gid'], ':sid'=> $surveyid]
+                    );
+                    array_map(
+                        function ($oQuestiongroup) use ($aQuestiongroup, $success) {
+                            $oQuestiongroup->group_order = $aQuestiongroup['group_order'];
+                            $success = $success && $oQuestiongroup->save();
+                        }, 
+                        $oQuestiongroups
+                    );
                     
                     $aQuestiongroup['questions'] = isset($aQuestiongroup['questions']) ? $aQuestiongroup['questions'] : [];
 
                     foreach ($aQuestiongroup['questions'] as $aQuestion) {
-                        $oQuestions = Question::model()->findAll("qid=:qid AND sid=:sid", [':qid'=> $aQuestion['qid'], ':sid'=> $surveyid]);
-                        array_map(function($oQuestion) use ($aQuestion, $success)
-                        {
-                            $oQuestion->question_order = $aQuestion['question_order'];
-                            $oQuestion->gid = $aQuestion['gid'];
-                            $success = $success && $oQuestion->save(true);
-                        }, $oQuestions);
+                        $aQuestions = Question::model()->findAll(
+                            "qid=:qid AND sid=:sid", 
+                            [':qid'=> $aQuestion['qid'], ':sid'=> $surveyid]
+                        );
+                        array_walk(
+                            $aQuestions,
+                            function ($oQuestion) use ($aQuestion, $success) {
+                                $oQuestion->question_order = $aQuestion['question_order'];
+                                $oQuestion->gid = $aQuestion['gid'];
+                                if(safecount($oQuestion->subquestions) > 0) {
+                                    array_walk(
+                                        $oQuestion->subquestions,
+                                        function ($oSubQuestion) use ($aQuestion, $success) {
+                                            $oSubQuestion->gid = $aQuestion['gid'];
+                                            $success = $success && $oSubQuestion->save(true);
+                                        }
+                                    );
+                                }
+                                $success = $success && $oQuestion->save(true);
+                            }
+                        );
                     }
                 }
             }

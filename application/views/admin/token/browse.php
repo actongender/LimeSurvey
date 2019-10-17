@@ -29,7 +29,7 @@
         <div class="row">
             <div class="content-right scrolling-wrapper"    >
                 <?php
-                    $this->widget('bootstrap.widgets.TbGridView', array(
+                    $this->widget('ext.LimeGridView.LimeGridView', array(
                         'dataProvider' => $model->search(),
                         'filter'=>$model,
                         'id' => 'token-grid',
@@ -43,7 +43,7 @@
                                 array('class'=>'changePageSize form-control', 'style'=>'display: inline; width: auto'))),
                         'itemsCssClass' =>'table-striped',
                         'columns' => $model->attributesForGrid,
-                        'ajaxUpdate'=>'token-grid',
+                        'ajaxUpdate' => 'token-grid',
                         'ajaxType'=>'POST',
                         'afterAjaxUpdate' => 'onUpdateTokenGrid'
                     ));

@@ -474,6 +474,8 @@ function submittokens($quotaexit = false)
                 //Only send confirmation email if there is a valid email address
             $sToAddress = validateEmailAddresses($token->email);
             if ($sToAddress) {
+                // #14499: Add first and last name to the "To" of confirmation email
+                $to = array($token->firstname." ".$token->lastname." <".$sToAddress[0].">");
                 $aAttachments = unserialize($thissurvey['attachments']);
 
                 $aRelevantAttachments = array();
@@ -484,7 +486,7 @@ function submittokens($quotaexit = false)
                     foreach ($aAttachments['confirmation'] as $aAttachment) {
                         $relevance = $aAttachment['relevance'];
                         // If the attachment is relevant it will be added to the mail.
-                        if (LimeExpressionManager::ProcessRelevance($relevance) && file_exists($aAttachment['url'])) {
+                        if (LimeExpressionManager::ProcessRelevance($relevance) && Yii::app()->is_file($aAttachment['url'],Yii::app()->getConfig('uploaddir').DIRECTORY_SEPARATOR."surveys".DIRECTORY_SEPARATOR.$surveyid,false)) {
                             $aRelevantAttachments[] = $aAttachment['url'];
                         }
                     }
@@ -494,7 +496,7 @@ function submittokens($quotaexit = false)
                 $event->set('type', 'confirm');
                 $event->set('model', 'confirm');
                 $event->set('subject', $subject);
-                $event->set('to', $sToAddress);
+                $event->set('to', $to);
                 $event->set('body', $message);
                 $event->set('from', $from);
                 $event->set('bounce', getBounceEmail($surveyid));
@@ -621,7 +623,7 @@ function sendSubmitNotifications($surveyid)
         foreach ($aAttachments['admin_notification'] as $aAttachment) {
             $relevance = $aAttachment['relevance'];
             // If the attachment is relevant it will be added to the mail.
-            if (LimeExpressionManager::ProcessRelevance($relevance) && file_exists($aAttachment['url'])) {
+            if (LimeExpressionManager::ProcessRelevance($relevance) && Yii::app()->is_file($aAttachment['url'],Yii::app()->getConfig('uploaddir').DIRECTORY_SEPARATOR."surveys".DIRECTORY_SEPARATOR.$surveyid,false)) {
                 $aRelevantAttachments[] = $aAttachment['url'];
             }
         }
@@ -641,15 +643,15 @@ function sendSubmitNotifications($surveyid)
         }
     }
 
-        $aRelevantAttachments = array();
+    $aRelevantAttachments = array();
     /*
      * Iterate through attachments and check them for relevance.
      */
-    if (isset($aAttachments['detailed_admin_notification'])) {
-        foreach ($aAttachments['detailed_admin_notification'] as $aAttachment) {
+    if (isset($aAttachments['admin_detailed_notification'])) {
+        foreach ($aAttachments['admin_detailed_notification'] as $aAttachment) {
             $relevance = $aAttachment['relevance'];
             // If the attachment is relevant it will be added to the mail.
-            if (LimeExpressionManager::ProcessRelevance($relevance) && file_exists($aAttachment['url'])) {
+            if (LimeExpressionManager::ProcessRelevance($relevance) && Yii::app()->is_file($aAttachment['url'],Yii::app()->getConfig('uploaddir').DIRECTORY_SEPARATOR."surveys".DIRECTORY_SEPARATOR.$surveyid,false)) {
                 $aRelevantAttachments[] = $aAttachment['url'];
             }
         }
@@ -1447,7 +1449,7 @@ function getNavigatorDatas()
     if ($thissurvey['navigationdelay'] > 0 && ($iSessionMaxStep !== false && $iSessionMaxStep == $iSessionStep)) {
         $aNavigator['disabled'] = " disabled";
         App()->getClientScript()->registerScriptFile(Yii::app()->getConfig('generalscripts')."/navigator-countdown.js");
-        App()->getClientScript()->registerScript('navigator_countdown', "navigator_countdown(".$thissurvey['navigationdelay'].");\n", CClientScript::POS_BEGIN);
+        App()->getClientScript()->registerScript('navigator_countdown', "navigator_countdown(".$thissurvey['navigationdelay'].");\n", LSYii_ClientScript::POS_POSTSCRIPT);
     }
 
     // Previous ?
@@ -2188,7 +2190,7 @@ function getSideBodyClass($sideMenustate = false)
 function cookieConsentLocalization()
 {
     return array(
-        gT('This website uses cookies. By continuing this survey you approve the data protection policy of the service provider.'),
+        gT('By continuing this survey you approve the data protection policy of the service provider.'),
         gT('OK'),
         gT('View policy'),
         gT('Please be patient until you are forwarded to the final URL.')
